@@ -9,6 +9,9 @@
 #define	_MAINFORM_H
 
 #include "ui_MainForm.h"
+#include "Street.h"
+#include "QtNetwork/QNetworkAccessManager"
+#include "QtNetwork/QNetworkReply"
 
 class MainForm : public QMainWindow {
     Q_OBJECT
@@ -17,8 +20,20 @@ public:
     virtual ~MainForm();
 public slots:
     void setAddressFile();
+    void convert();
+    void downloadOSM();
 private:
     Ui::mainForm widget;
+    QNetworkAccessManager* nam;
+    QHash<int, Coordinate> nodes;
+    QList<Street> streets;
+    enum FeatureType {
+        Node,
+        Way,
+        Relation
+    };
+private slots:
+    void readOSM(QNetworkReply* reply);
 };
 
 #endif	/* _MAINFORM_H */
