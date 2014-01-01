@@ -15,6 +15,8 @@ class MainForm : public QMainWindow {
 public:
     MainForm();
     virtual ~MainForm();
+public slots:
+    void setAddressFile();
 private:
     Ui::mainForm widget;
 };
