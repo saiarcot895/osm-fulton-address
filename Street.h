@@ -12,7 +12,7 @@
 
 struct Street {
     QString name;
-    QList<Coordinate> coordinates;
+    QList<int> nodeIndices;
 };
 
 #endif	/* STREET_H */

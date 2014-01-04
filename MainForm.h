@@ -26,10 +26,12 @@ private:
     Ui::mainForm widget;
     QNetworkAccessManager* nam;
     QHash<int, Coordinate> nodes;
-    QList<Street> streets;
+    QList<Street*> streets;
     enum FeatureType {
+        None = 0,
         Node,
         Way,
+        WayConfirmed,
         Relation
     };
 private slots:

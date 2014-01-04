@@ -64,7 +64,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
     if (reply->error() == QNetworkReply::NoError) {
         QXmlStreamReader reader(reply->readAll());
         Street* street;
+        FeatureType current = None;
         while (!reader.atEnd()) {
+            // Tags are assumed to be in alphabetical order
             switch (reader.readNext()) {
                 case QXmlStreamReader::StartElement:
                     if (reader.name().toString() == "node") {
@@ -74,15 +76,40 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         coordinate.lon = reader.attributes().value("lon").toString().toDouble();
                         nodes.insert(nodeId, coordinate);
                     } else if (reader.name().toString() == "way") {
-
+                        // A way is typically either be a road or a building. For
+                        // now, assume it is a road, since we need the nodes and
+                        // those come before the way tags
+                        current = Way;
+                        street = new Street();
+                    } else if (reader.name().toString() == "tag") {
+                        if (current == Way && reader.attributes().value("k") == "building") {
+                            current = None;
+                            delete street;
+                        } else if (reader.attributes().value("k") == "highway"
+                                && current == Way) {
+                            // We now know this is a way.
+                            current = WayConfirmed;
+                        } else if (reader.attributes().value("k") == "name"
+                                && current == WayConfirmed) {
+                            street->name = reader.attributes().value("v").toString();
+                        }
+                    } else if (reader.name().toString() == "nd" && current == Way) {
+                        street->nodeIndices.append(reader.attributes().value("ref").toString().toInt());
                     }
-
                     break;
                 case QXmlStreamReader::EndElement:
+                    if (current == WayConfirmed && reader.name().toString() == "way") {
+                        streets.append(street);
+                        current = None;
+                    }
                     break;
                 default:
                     break;
             }
+        }
+        for (int i = 0; i < streets.size(); i++) {
+            Street* street = streets.at(i);
+            qDebug() << street->name;
         }
     } else {
         qWarning() << reply->errorString();
