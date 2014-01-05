@@ -10,6 +10,7 @@
 
 #include "ui_MainForm.h"
 #include "Street.h"
+#include "Address.h"
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
 
@@ -27,6 +28,7 @@ private:
     QNetworkAccessManager* nam;
     QHash<int, Coordinate> nodes;
     QList<Street*> streets;
+    QList<Address*> addresses;
     enum FeatureType {
         None = 0,
         Node,

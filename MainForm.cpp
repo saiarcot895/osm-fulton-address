@@ -10,6 +10,7 @@
 #include "QUrl"
 #include "QXmlStreamReader"
 #include "QDebug"
+#include "Address.h"
 
 MainForm::MainForm() {
     widget.setupUi(this);
@@ -64,6 +65,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
     if (reply->error() == QNetworkReply::NoError) {
         QXmlStreamReader reader(reply->readAll());
         Street* street;
+        Address* address;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -82,7 +84,13 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         current = Way;
                         street = new Street();
                     } else if (reader.name().toString() == "tag") {
-                        if (current == Way && reader.attributes().value("k") == "building") {
+                        if (reader.attributes().value("k") == "addr:housenumber") {
+                            address = new Address();
+                            address->houseNumber = reader.attributes().value("v").toString();
+                        } else if (reader.attributes().value("k") == "addr:street") {
+                            address->street = reader.attributes().value("v").toString();
+                            addresses.append(address);
+                        } else if (current == Way && reader.attributes().value("k") == "building") {
                             current = None;
                             delete street;
                         } else if (reader.attributes().value("k") == "highway"
@@ -107,9 +115,16 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
             }
         }
+        widget.textBrowser->insertPlainText("Streets:\n");
         for (int i = 0; i < streets.size(); i++) {
             Street* street = streets.at(i);
-            qDebug() << street->name;
+            widget.textBrowser->insertPlainText(street->name + "\n");
+        }
+        widget.textBrowser->insertPlainText("\n");
+        widget.textBrowser->insertPlainText("Addresses:\n");
+        for (int i = 0; i < addresses.size(); i++) {
+            Address* address = addresses.at(i);
+            widget.textBrowser->insertPlainText(address->houseNumber + " " + address->street + "\n");
         }
     } else {
         qWarning() << reply->errorString();
