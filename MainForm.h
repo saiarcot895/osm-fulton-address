@@ -28,7 +28,8 @@ private:
     QNetworkAccessManager* nam;
     QHash<int, Coordinate> nodes;
     QList<Street*> streets;
-    QList<Address*> addresses;
+    QList<Address*> existingAddresses;
+    QList<Address*> newAddresses;
     enum FeatureType {
         None = 0,
         Node,
@@ -36,6 +37,8 @@ private:
         WayConfirmed,
         Relation
     };
+
+    void readAddressFile();
 private slots:
     void readOSM(QNetworkReply* reply);
 };

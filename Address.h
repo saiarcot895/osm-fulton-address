@@ -11,6 +11,7 @@
 struct Address {
     QString houseNumber;
     QString street;
+    Coordinate coordinate;
 };
 
 #endif	/* ADDRESS_H */

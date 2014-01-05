@@ -89,7 +89,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             address->houseNumber = reader.attributes().value("v").toString();
                         } else if (reader.attributes().value("k") == "addr:street") {
                             address->street = reader.attributes().value("v").toString();
-                            addresses.append(address);
+                            existingAddresses.append(address);
                         } else if (current == Way && reader.attributes().value("k") == "building") {
                             current = None;
                             delete street;
@@ -122,12 +122,50 @@ void MainForm::readOSM(QNetworkReply* reply) {
         }
         widget.textBrowser->insertPlainText("\n");
         widget.textBrowser->insertPlainText("Addresses:\n");
-        for (int i = 0; i < addresses.size(); i++) {
-            Address* address = addresses.at(i);
+        for (int i = 0; i < existingAddresses.size(); i++) {
+            Address* address = existingAddresses.at(i);
             widget.textBrowser->insertPlainText(address->houseNumber + " " + address->street + "\n");
         }
+        readAddressFile();
     } else {
-        qWarning() << reply->errorString();
+        widget.textBrowser->insertPlainText(reply->errorString());
+        qCritical() << reply->errorString();
+    }
+}
+
+void MainForm::readAddressFile() {
+    QFile file(widget.lineEdit->text());
+    QXmlStreamReader reader(file.readAll());
+    Address* address;
+    int numLo, numHi;
+    while (!reader.atEnd()) {
+        switch (reader.readNext()) {
+            case QXmlStreamReader::StartElement:
+                if (reader.name().toString() == "node") {
+                    address->coordinate.lat = reader.attributes().value("lat").toString().toDouble();
+                    address->coordinate.lon = reader.attributes().value("lon").toString().toDouble();
+                } else if (reader.name().toString() == "tag") {
+                    if (reader.attributes().value("k") == "STR_NUM_LO") {
+                        numLo = reader.attributes().value("v").toString().toInt();
+                    }
+                    if (reader.attributes().value("k") == "STR_NUM_HI") {
+                        numHi = reader.attributes().value("v").toString().toInt();
+                    }
+                    if (numLo != -1 && numHi != -1) {
+                        if (numLo == numHi) {
+                            address->houseNumber = numLo;
+                        }
+                    }
+                    if (reader.attributes().value("k") == "NAME") {
+                        QString name = reader.attributes().value("v").toString();
+                    }
+                }
+                break;
+            case QXmlStreamReader::EndElement:
+                break;
+            default:
+                break;
+        }
     }
 }
 
