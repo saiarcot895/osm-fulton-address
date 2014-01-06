@@ -39,6 +39,7 @@ private:
     };
 
     void readAddressFile();
+    QString expandQuadrant(QString street);
 private slots:
     void readOSM(QNetworkReply* reply);
 };

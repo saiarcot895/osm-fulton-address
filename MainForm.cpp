@@ -170,7 +170,7 @@ void MainForm::readAddressFile() {
                     }
                     if (reader.attributes().value("k") == "NAME") {
                         Street tempStreet;
-                        tempStreet.name = reader.attributes().value("v").toString();
+                        tempStreet.name = expandQuadrant(reader.attributes().value("v").toString());
                         int i;
                         if ((i = streets.indexOf(tempStreet)) != -1) {
                             address->street = streets.at(i).name;
@@ -206,6 +206,11 @@ void MainForm::readAddressFile() {
         Address address = newAddresses.at(i);
         widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
     }
+}
+
+QString MainForm::expandQuadrant(QString street) {
+    return street.replace("NE", "Northeast").replace("NW", "Northwest")
+            .replace("SE", "Southeast").replace("SW", "Southwest");
 }
 
 MainForm::~MainForm() {
