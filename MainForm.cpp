@@ -148,6 +148,7 @@ void MainForm::readAddressFile() {
 
     QXmlStreamReader reader(&file);
     Address* address;
+    bool valid = true;
     int numLo, numHi;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
@@ -159,22 +160,26 @@ void MainForm::readAddressFile() {
                 } else if (reader.name().toString() == "tag") {
                     if (reader.attributes().value("k") == "STR_NUM_LO") {
                         numLo = reader.attributes().value("v").toString().toInt();
-                    }
-                    if (reader.attributes().value("k") == "STR_NUM_HI") {
+                    } else if (reader.attributes().value("k") == "STR_NUM_HI") {
                         numHi = reader.attributes().value("v").toString().toInt();
-                    }
-                    if (numLo != -1 && numHi != -1) {
-                        if (numLo == numHi) {
-                            address->houseNumber = QString::number(numLo);
-                        }
-                    }
-                    if (reader.attributes().value("k") == "NAME") {
+                    } else if (reader.attributes().value("k") == "NAME") {
                         Street tempStreet;
                         tempStreet.name = expandQuadrant(reader.attributes().value("v").toString());
                         int i;
                         if ((i = streets.indexOf(tempStreet)) != -1) {
                             address->street = streets.at(i).name;
                         }
+                    } else if (reader.attributes().value("k") == "FEAT_TYPE") {
+                        if (reader.attributes().value("v") == "driv") {
+                            address->addressType = Address::Primary;
+                        } else if (reader.attributes().value("v") == "stru") {
+                            address->addressType = Address::Structural;
+                        }
+                    } else if (reader.attributes().value("k") == "STATUS") {
+                        valid &= reader.attributes().value("v") == "A";
+                    } else if (reader.attributes().value("k") == "SUNSET") {
+//                        valid &= reader.attributes().value("v") == "999999" ||
+//                                reader.attributes().value("v") == "-1";
                     }
                 }
                 break;
@@ -184,8 +189,38 @@ void MainForm::readAddressFile() {
                             address->coordinate.lat >= widget.doubleSpinBox_3->value() &&
                             address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
                             address->coordinate.lon <= widget.doubleSpinBox_4->value()) {
-                        if (!address->houseNumber.isEmpty() && !address->street.isEmpty()) {
-                            newAddresses.append(*address);
+                        if (numLo != -1 && numHi != -1) {
+                            if (numLo == numHi) {
+                                address->houseNumber = QString::number(numLo);
+                            }
+                            // define behavior for different low and high?
+                        }
+                        if (!address->houseNumber.isEmpty()
+                                && !address->street.isEmpty()
+                                && !existingAddresses.contains(*address)
+                                && address->addressType != Address::Other
+                                && valid) {
+                            int i = newAddresses.indexOf(*address);
+                            if (i != -1) {
+                                Address existingAddress = newAddresses.at(i);
+                                if (existingAddress.addressType == Address::Structural
+                                        && address->addressType == Address::Structural) {
+                                    existingAddress.allowStructural = false;
+                                } else if (existingAddress.addressType == Address::Primary
+                                        && address->addressType == Address::Structural
+                                        && existingAddress.allowStructural) {
+                                    existingAddress.coordinate = address->coordinate;
+                                    existingAddress.addressType = Address::Structural;
+                                } else if (existingAddress.addressType == Address::Structural
+                                        && address->addressType == Address::Primary
+                                        && !existingAddress.allowStructural) {
+                                    existingAddress.coordinate = address->coordinate;
+                                    existingAddress.addressType = Address::Primary;
+                                }
+                                delete address;
+                            } else {
+                                newAddresses.append(*address);
+                            }
                         } else {
                             delete address;
                         }
@@ -194,6 +229,7 @@ void MainForm::readAddressFile() {
                     }
                     numLo = -1;
                     numHi = -1;
+                    valid = true;
                 }
                 break;
             default:
