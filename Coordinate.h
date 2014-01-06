@@ -8,6 +8,8 @@
 #ifndef COORDINATE_H
 #define	COORDINATE_H
 
+#include "qglobal.h"
+
 struct Coordinate {
     qreal lat;
     qreal lon;

@@ -89,7 +89,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             address->houseNumber = reader.attributes().value("v").toString();
                         } else if (reader.attributes().value("k") == "addr:street") {
                             address->street = reader.attributes().value("v").toString();
-                            existingAddresses.append(address);
+                            existingAddresses.append(*address);
                         } else if (current == Way && reader.attributes().value("k") == "building") {
                             current = None;
                             delete street;
@@ -107,7 +107,14 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
                 case QXmlStreamReader::EndElement:
                     if (current == WayConfirmed && reader.name().toString() == "way") {
-                        streets.append(street);
+                        int i = streets.indexOf(*street, 0);
+                        if (i != -1) {
+                            Street mainStreet = streets.at(i);
+                            mainStreet.nodeIndices.append(street->nodeIndices);
+                            delete street;
+                        } else {
+                            streets.append(*street);
+                        }
                         current = None;
                     }
                     break;
@@ -117,14 +124,14 @@ void MainForm::readOSM(QNetworkReply* reply) {
         }
         widget.textBrowser->insertPlainText("Streets:\n");
         for (int i = 0; i < streets.size(); i++) {
-            Street* street = streets.at(i);
-            widget.textBrowser->insertPlainText(street->name + "\n");
+            Street street = streets.at(i);
+            widget.textBrowser->insertPlainText(street.name + "\n");
         }
         widget.textBrowser->insertPlainText("\n");
-        widget.textBrowser->insertPlainText("Addresses:\n");
+        widget.textBrowser->insertPlainText("Existing Addresses:\n");
         for (int i = 0; i < existingAddresses.size(); i++) {
-            Address* address = existingAddresses.at(i);
-            widget.textBrowser->insertPlainText(address->houseNumber + " " + address->street + "\n");
+            Address address = existingAddresses.at(i);
+            widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
         }
         readAddressFile();
     } else {
@@ -135,13 +142,18 @@ void MainForm::readOSM(QNetworkReply* reply) {
 
 void MainForm::readAddressFile() {
     QFile file(widget.lineEdit->text());
-    QXmlStreamReader reader(file.readAll());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return;
+    }
+
+    QXmlStreamReader reader(&file);
     Address* address;
     int numLo, numHi;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
             case QXmlStreamReader::StartElement:
                 if (reader.name().toString() == "node") {
+                    address = new Address();
                     address->coordinate.lat = reader.attributes().value("lat").toString().toDouble();
                     address->coordinate.lon = reader.attributes().value("lon").toString().toDouble();
                 } else if (reader.name().toString() == "tag") {
@@ -153,21 +165,49 @@ void MainForm::readAddressFile() {
                     }
                     if (numLo != -1 && numHi != -1) {
                         if (numLo == numHi) {
-                            address->houseNumber = numLo;
+                            address->houseNumber = QString::number(numLo);
                         }
                     }
                     if (reader.attributes().value("k") == "NAME") {
-                        QString name = reader.attributes().value("v").toString();
+                        Street tempStreet;
+                        tempStreet.name = reader.attributes().value("v").toString();
+                        int i;
+                        if ((i = streets.indexOf(tempStreet)) != -1) {
+                            address->street = streets.at(i).name;
+                        }
                     }
                 }
                 break;
             case QXmlStreamReader::EndElement:
+                if (reader.name().toString() == "node") {
+                    if (address->coordinate.lat <= widget.doubleSpinBox->value() &&
+                            address->coordinate.lat >= widget.doubleSpinBox_3->value() &&
+                            address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
+                            address->coordinate.lon <= widget.doubleSpinBox_4->value()) {
+                        if (!address->houseNumber.isEmpty() && !address->street.isEmpty()) {
+                            newAddresses.append(*address);
+                        } else {
+                            delete address;
+                        }
+                    } else {
+                        delete address;
+                    }
+                    numLo = -1;
+                    numHi = -1;
+                }
                 break;
             default:
                 break;
         }
     }
+    widget.textBrowser->insertPlainText("\n");
+    widget.textBrowser->insertPlainText("New Addresses:\n");
+    for (int i = 0; i < newAddresses.size(); i++) {
+        Address address = newAddresses.at(i);
+        widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
+    }
 }
 
 MainForm::~MainForm() {
+    delete nam;
 }

@@ -9,10 +9,14 @@
 #define	STREET_H
 
 #include "Coordinate.h"
+#include "QString"
+#include "QList"
 
-struct Street {
+class Street {
+public:
     QString name;
     QList<int> nodeIndices;
+    bool operator==(Street street1) const;
 };
 
 #endif	/* STREET_H */

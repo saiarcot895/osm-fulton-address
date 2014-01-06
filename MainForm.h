@@ -27,9 +27,9 @@ private:
     Ui::mainForm widget;
     QNetworkAccessManager* nam;
     QHash<int, Coordinate> nodes;
-    QList<Street*> streets;
-    QList<Address*> existingAddresses;
-    QList<Address*> newAddresses;
+    QList<Street> streets;
+    QList<Address> existingAddresses;
+    QList<Address> newAddresses;
     enum FeatureType {
         None = 0,
         Node,
