@@ -9,6 +9,7 @@
 #include "QFileDialog"
 #include "QUrl"
 #include "QXmlStreamReader"
+#include "QXmlStreamWriter"
 #include "QDebug"
 #include "Address.h"
 
@@ -24,6 +25,7 @@ MainForm::MainForm() {
 
     connect(widget.pushButton, SIGNAL(clicked()), this, SLOT(setAddressFile()));
     connect(widget.pushButton_2, SIGNAL(clicked()), this, SLOT(convert()));
+    connect(widget.pushButton_3, SIGNAL(clicked()), this, SLOT(setOutputFile()));
     connect(nam, SIGNAL(finished(QNetworkReply*)), this, SLOT(readOSM(QNetworkReply*)));
 }
 
@@ -32,6 +34,14 @@ void MainForm::setAddressFile() {
             tr("OSM File (*.osm);;XML File (*.xml)"));
     if (fileName.length() != 0) {
         widget.lineEdit->setText(fileName);
+    }
+}
+
+void MainForm::setOutputFile() {
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "",
+            tr("OSM File (*.osm);;XML File (*.xml)"));
+    if (fileName.length() != 0) {
+        widget.lineEdit_2->setText(fileName);
     }
 }
 
@@ -242,6 +252,42 @@ void MainForm::readAddressFile() {
         Address address = newAddresses.at(i);
         widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
     }
+    outputChangeFile();
+}
+
+void MainForm::outputChangeFile() {
+    QFile file(widget.lineEdit_2->text());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return;
+    }
+
+    QXmlStreamWriter writer(&file);
+    writer.setAutoFormatting(true);
+    writer.writeStartDocument();
+    writer.writeStartElement("osm");
+    writer.writeAttribute("version", "0.6");
+    for (int i = 0; i < newAddresses.size(); i++) {
+        Address address = newAddresses.at(i);
+
+        writer.writeStartElement("node");
+        writer.writeAttribute("id", tr("-%1").arg(i + 1));
+        writer.writeAttribute("lat", tr("%1").arg(address.coordinate.lat));
+        writer.writeAttribute("lon", tr("%1").arg(address.coordinate.lon));
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:houseNumber");
+        writer.writeAttribute("v", address.houseNumber);
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:street");
+        writer.writeAttribute("v", address.street);
+        writer.writeEndElement();
+
+        writer.writeEndElement();
+    }
+    writer.writeEndElement();
+    writer.writeEndDocument();
 }
 
 QString MainForm::expandQuadrant(QString street) {

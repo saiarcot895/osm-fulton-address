@@ -21,6 +21,7 @@ public:
     virtual ~MainForm();
 public slots:
     void setAddressFile();
+    void setOutputFile();
     void convert();
     void downloadOSM();
 private:
@@ -39,6 +40,7 @@ private:
     };
 
     void readAddressFile();
+    void outputChangeFile();
     QString expandQuadrant(QString street);
 private slots:
     void readOSM(QNetworkReply* reply);
