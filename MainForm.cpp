@@ -117,13 +117,12 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
                 case QXmlStreamReader::EndElement:
                     if (current == WayConfirmed && reader.name().toString() == "way") {
-                        int i = streets.indexOf(*street, 0);
-                        if (i != -1) {
-                            Street mainStreet = streets.at(i);
+                        Street mainStreet = streets.value(street->name);
+                        if (!mainStreet.name.isEmpty()) {
                             mainStreet.nodeIndices.append(street->nodeIndices);
                             delete street;
                         } else {
-                            streets.append(*street);
+                            streets.insert(street->name.toUpper(), *street);
                         }
                         current = None;
                     }
@@ -134,7 +133,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
         }
         widget.textBrowser->insertPlainText("Streets:\n");
         for (int i = 0; i < streets.size(); i++) {
-            Street street = streets.at(i);
+            Street street = streets.values().at(i);
             widget.textBrowser->insertPlainText(street.name + "\n");
         }
         widget.textBrowser->insertPlainText("\n");
@@ -178,11 +177,9 @@ void MainForm::readAddressFile() {
                     } else if (reader.attributes().value("k") == "STR_NUM_HI") {
                         numHi = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k") == "NAME") {
-                        Street tempStreet;
-                        tempStreet.name = expandQuadrant(reader.attributes().value("v").toString());
-                        int i;
-                        if ((i = streets.indexOf(tempStreet)) != -1) {
-                            address->street = streets.at(i).name;
+                        QString streetName = expandQuadrant(reader.attributes().value("v").toString());
+                        if (!streets.value(streetName.toUpper()).name.isEmpty()) {
+                            address->street = streets.value(streetName.toUpper()).name;
                         }
                     } else if (reader.attributes().value("k") == "FEAT_TYPE") {
                         if (reader.attributes().value("v") == "driv") {
