@@ -159,6 +159,7 @@ void MainForm::readAddressFile() {
     QXmlStreamReader reader(&file);
     Address* address;
     bool valid = true;
+    bool skip = false;
     int numLo, numHi;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
@@ -167,7 +168,11 @@ void MainForm::readAddressFile() {
                     address = new Address();
                     address->coordinate.lat = reader.attributes().value("lat").toString().toDouble();
                     address->coordinate.lon = reader.attributes().value("lon").toString().toDouble();
-                } else if (reader.name().toString() == "tag") {
+                    skip = !(address->coordinate.lat <= widget.doubleSpinBox->value() &&
+                            address->coordinate.lat >= widget.doubleSpinBox_3->value() &&
+                            address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
+                            address->coordinate.lon <= widget.doubleSpinBox_4->value());
+                } else if (reader.name().toString() == "tag" && !skip) {
                     if (reader.attributes().value("k") == "STR_NUM_LO") {
                         numLo = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k") == "STR_NUM_HI") {
@@ -195,10 +200,7 @@ void MainForm::readAddressFile() {
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "node") {
-                    if (address->coordinate.lat <= widget.doubleSpinBox->value() &&
-                            address->coordinate.lat >= widget.doubleSpinBox_3->value() &&
-                            address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
-                            address->coordinate.lon <= widget.doubleSpinBox_4->value()) {
+                    if (!skip) {
                         if (numLo != -1 && numHi != -1) {
                             if (numLo == numHi) {
                                 address->houseNumber = QString::number(numLo);
