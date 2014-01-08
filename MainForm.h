@@ -13,6 +13,7 @@
 #include "Address.h"
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
+#include "QXmlStreamWriter"
 
 class MainForm : public QMainWindow {
     Q_OBJECT
@@ -41,6 +42,8 @@ private:
 
     void readAddressFile();
     void outputChangeFile();
+    void outputStartOfFile(QXmlStreamWriter& writer);
+    void outputEndOfFile(QXmlStreamWriter& writer);
     QString expandQuadrant(QString street);
 private slots:
     void readOSM(QNetworkReply* reply);

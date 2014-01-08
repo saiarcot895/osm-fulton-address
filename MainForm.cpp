@@ -9,7 +9,6 @@
 #include "QFileDialog"
 #include "QUrl"
 #include "QXmlStreamReader"
-#include "QXmlStreamWriter"
 #include "QDebug"
 #include "Address.h"
 
@@ -255,36 +254,50 @@ void MainForm::readAddressFile() {
 }
 
 void MainForm::outputChangeFile() {
-    QFile file(widget.lineEdit_2->text());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        return;
-    }
+    for (int i = 0; i <= newAddresses.size() / 5000; i++) {
+        QFile file(i == 0
+                ? tr("%1.osc").arg(widget.lineEdit_2->text())
+                : tr("%1_%2.osc").arg(widget.lineEdit_2->text()).arg(i));
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            return;
+        }
 
-    QXmlStreamWriter writer(&file);
-    writer.setAutoFormatting(true);
+        QXmlStreamWriter writer(&file);
+        writer.setAutoFormatting(true);
+        outputStartOfFile(writer);
+        for (int j = i * 5000; j < newAddresses.size() && j < (i + 1) * 5000; j++) {
+            Address address = newAddresses.at(j);
+
+            writer.writeStartElement("node");
+            writer.writeAttribute("id", tr("-%1").arg(j + 1));
+            writer.writeAttribute("lat", tr("%1").arg(address.coordinate.lat));
+            writer.writeAttribute("lon", tr("%1").arg(address.coordinate.lon));
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:houseNumber");
+            writer.writeAttribute("v", address.houseNumber);
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:street");
+            writer.writeAttribute("v", address.street);
+            writer.writeEndElement();
+
+            writer.writeEndElement();
+        }
+        outputEndOfFile(writer);
+    }
+}
+
+void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
     writer.writeStartDocument();
     writer.writeStartElement("osm");
     writer.writeAttribute("version", "0.6");
-    for (int i = 0; i < newAddresses.size(); i++) {
-        Address address = newAddresses.at(i);
+    writer.writeStartElement("create");
+}
 
-        writer.writeStartElement("node");
-        writer.writeAttribute("id", tr("-%1").arg(i + 1));
-        writer.writeAttribute("lat", tr("%1").arg(address.coordinate.lat));
-        writer.writeAttribute("lon", tr("%1").arg(address.coordinate.lon));
-
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "addr:houseNumber");
-        writer.writeAttribute("v", address.houseNumber);
-        writer.writeEndElement();
-
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "addr:street");
-        writer.writeAttribute("v", address.street);
-        writer.writeEndElement();
-
-        writer.writeEndElement();
-    }
+void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
+    writer.writeEndElement();
     writer.writeEndElement();
     writer.writeEndDocument();
 }
