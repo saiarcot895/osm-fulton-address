@@ -11,6 +11,7 @@
 #include "QXmlStreamReader"
 #include "QDebug"
 #include "Address.h"
+#include <geos/geom/PrecisionModel.h>
 
 MainForm::MainForm() {
     widget.setupUi(this);
@@ -21,6 +22,7 @@ MainForm::MainForm() {
     widget.doubleSpinBox_4->setValue(-84.3474);
 
     nam = new QNetworkAccessManager(this);
+    factory = new geos::geom::GeometryFactory(new geos::geom::PrecisionModel(), 4326);
 
     connect(widget.pushButton, SIGNAL(clicked()), this, SLOT(setAddressFile()));
     connect(widget.pushButton_2, SIGNAL(clicked()), this, SLOT(convert()));
@@ -82,11 +84,11 @@ void MainForm::readOSM(QNetworkReply* reply) {
             switch (reader.readNext()) {
                 case QXmlStreamReader::StartElement:
                     if (reader.name().toString() == "node") {
-                        Coordinate coordinate;
+                        geos::geom::Coordinate coordinate;
                         int nodeId = reader.attributes().value("id").toString().toInt();
-                        coordinate.lat = reader.attributes().value("lat").toString().toDouble();
-                        coordinate.lon = reader.attributes().value("lon").toString().toDouble();
-                        nodes.insert(nodeId, coordinate);
+                        coordinate.x = reader.attributes().value("lat").toString().toDouble();
+                        coordinate.y = reader.attributes().value("lon").toString().toDouble();
+                        nodes.insert(nodeId, factory->createPoint(coordinate));
                     } else if (reader.name().toString() == "way") {
                         // A way is typically either be a road or a building. For
                         // now, assume it is a road, since we need the nodes and
@@ -166,12 +168,14 @@ void MainForm::readAddressFile() {
             case QXmlStreamReader::StartElement:
                 if (reader.name().toString() == "node") {
                     address = new Address();
-                    address->coordinate.lat = reader.attributes().value("lat").toString().toDouble();
-                    address->coordinate.lon = reader.attributes().value("lon").toString().toDouble();
-                    skip = !(address->coordinate.lat <= widget.doubleSpinBox->value() &&
-                            address->coordinate.lat >= widget.doubleSpinBox_3->value() &&
-                            address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
-                            address->coordinate.lon <= widget.doubleSpinBox_4->value());
+                    geos::geom::Coordinate coordinate;
+                    coordinate.x = reader.attributes().value("lat").toString().toDouble();
+                    coordinate.y = reader.attributes().value("lon").toString().toDouble();
+                    address->coordinate = factory->createPoint(coordinate);
+                    skip = !(coordinate.x <= widget.doubleSpinBox->value() &&
+                            coordinate.x >= widget.doubleSpinBox_3->value() &&
+                            coordinate.y >= widget.doubleSpinBox_2->value() &&
+                            coordinate.y <= widget.doubleSpinBox_4->value());
                 } else if (reader.name().toString() == "tag" && !skip) {
                     if (reader.attributes().value("k") == "addr:housenumber") {
                         address->houseNumber = reader.attributes().value("v").toString();
@@ -267,8 +271,8 @@ void MainForm::outputChangeFile() {
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));
-            writer.writeAttribute("lat", QString::number(address.coordinate.lat, 'g', 12));
-            writer.writeAttribute("lon", QString::number(address.coordinate.lon, 'g', 12));
+            writer.writeAttribute("lat", QString::number(address.coordinate->getX(), 'g', 12));
+            writer.writeAttribute("lon", QString::number(address.coordinate->getY(), 'g', 12));
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "addr:houseNumber");

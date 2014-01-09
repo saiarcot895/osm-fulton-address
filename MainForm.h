@@ -11,6 +11,7 @@
 #include "ui_MainForm.h"
 #include "Street.h"
 #include "Address.h"
+#include <geos/geom/GeometryFactory.h>
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
 #include "QXmlStreamWriter"
@@ -28,7 +29,8 @@ public slots:
 private:
     Ui::mainForm widget;
     QNetworkAccessManager* nam;
-    QHash<int, Coordinate> nodes;
+    geos::geom::GeometryFactory* factory;
+    QHash<int, geos::geom::Point*> nodes;
     QHash<QString, Street> streets;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
