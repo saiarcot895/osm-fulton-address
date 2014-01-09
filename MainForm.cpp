@@ -15,10 +15,10 @@
 MainForm::MainForm() {
     widget.setupUi(this);
 
-    widget.doubleSpinBox->setValue(33.7857);
-    widget.doubleSpinBox_2->setValue(-84.3982);
-    widget.doubleSpinBox_3->setValue(33.7633);
-    widget.doubleSpinBox_4->setValue(-84.3574);
+    widget.doubleSpinBox->setValue(33.7957);
+    widget.doubleSpinBox_2->setValue(-84.3992);
+    widget.doubleSpinBox_3->setValue(33.7433);
+    widget.doubleSpinBox_4->setValue(-84.3474);
 
     nam = new QNetworkAccessManager(this);
 
@@ -270,8 +270,8 @@ void MainForm::outputChangeFile() {
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));
-            writer.writeAttribute("lat", tr("%1").arg(address.coordinate.lat));
-            writer.writeAttribute("lon", tr("%1").arg(address.coordinate.lon));
+            writer.writeAttribute("lat", QString::number(address.coordinate.lat, 'g', 12));
+            writer.writeAttribute("lon", QString::number(address.coordinate.lon, 'g', 12));
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "addr:houseNumber");
