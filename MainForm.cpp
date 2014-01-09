@@ -156,9 +156,7 @@ void MainForm::readAddressFile() {
 
     QXmlStreamReader reader(&file);
     Address* address;
-    bool valid = true;
     bool skip = false;
-    int numLo, numHi;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
             case QXmlStreamReader::StartElement:
@@ -171,43 +169,29 @@ void MainForm::readAddressFile() {
                             address->coordinate.lon >= widget.doubleSpinBox_2->value() &&
                             address->coordinate.lon <= widget.doubleSpinBox_4->value());
                 } else if (reader.name().toString() == "tag" && !skip) {
-                    if (reader.attributes().value("k") == "STR_NUM_LO") {
-                        numLo = reader.attributes().value("v").toString().toInt();
-                    } else if (reader.attributes().value("k") == "STR_NUM_HI") {
-                        numHi = reader.attributes().value("v").toString().toInt();
-                    } else if (reader.attributes().value("k") == "NAME") {
-                        QString streetName = expandQuadrant(reader.attributes().value("v").toString());
+                    if (reader.attributes().value("k") == "addr:housenumber") {
+                        address->houseNumber = reader.attributes().value("v").toString();
+                    } else if (reader.attributes().value("k") == "addr:street") {
+                        QString streetName = reader.attributes().value("v").toString();
                         if (!streets.value(streetName.toUpper()).name.isEmpty()) {
                             address->street = streets.value(streetName.toUpper()).name;
                         }
-                    } else if (reader.attributes().value("k") == "FEAT_TYPE") {
+                    } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
                         if (reader.attributes().value("v") == "driv") {
                             address->addressType = Address::Primary;
                         } else if (reader.attributes().value("v") == "stru") {
                             address->addressType = Address::Structural;
                         }
-                    } else if (reader.attributes().value("k") == "STATUS") {
-                        valid &= reader.attributes().value("v") == "A";
-                    } else if (reader.attributes().value("k") == "SUNSET") {
-//                        valid &= reader.attributes().value("v") == "999999" ||
-//                                reader.attributes().value("v") == "-1";
                     }
                 }
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "node") {
                     if (!skip) {
-                        if (numLo != -1 && numHi != -1) {
-                            if (numLo == numHi) {
-                                address->houseNumber = QString::number(numLo);
-                            }
-                            // define behavior for different low and high?
-                        }
                         if (!address->houseNumber.isEmpty()
                                 && !address->street.isEmpty()
                                 && !existingAddresses.contains(*address)
-                                && address->addressType != Address::Other
-                                && valid) {
+                                && address->addressType != Address::Other) {
                             int i = newAddresses.indexOf(*address);
                             if (i != -1) {
                                 Address existingAddress = newAddresses.at(i);
@@ -235,9 +219,6 @@ void MainForm::readAddressFile() {
                     } else {
                         delete address;
                     }
-                    numLo = -1;
-                    numHi = -1;
-                    valid = true;
                 }
                 break;
             default:
