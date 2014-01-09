@@ -38,7 +38,7 @@ void MainForm::setAddressFile() {
 
 void MainForm::setOutputFile() {
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "",
-            tr("OSM File (*.osm);;XML File (*.xml)"));
+            tr("OsmChange File (*.osc)"));
     if (fileName.length() != 0) {
         widget.lineEdit_2->setText(fileName);
     }
@@ -272,7 +272,7 @@ void MainForm::outputChangeFile() {
 
 void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
     writer.writeStartDocument();
-    writer.writeStartElement("osm");
+    writer.writeStartElement("osmChange");
     writer.writeAttribute("version", "0.6");
     writer.writeStartElement("create");
 }
