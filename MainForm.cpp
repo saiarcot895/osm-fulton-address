@@ -12,14 +12,15 @@
 #include "QDebug"
 #include "Address.h"
 #include <geos/geom/PrecisionModel.h>
+#include <geos/geom/CoordinateSequenceFactory.h>
 
 MainForm::MainForm() {
     widget.setupUi(this);
 
-    widget.doubleSpinBox->setValue(33.7957);
-    widget.doubleSpinBox_2->setValue(-84.3992);
-    widget.doubleSpinBox_3->setValue(33.7433);
-    widget.doubleSpinBox_4->setValue(-84.3474);
+    widget.doubleSpinBox->setValue(33.7857);
+    widget.doubleSpinBox_2->setValue(-84.3982);
+    widget.doubleSpinBox_3->setValue(33.7633);
+    widget.doubleSpinBox_4->setValue(-84.3574);
 
     nam = new QNetworkAccessManager(this);
     factory = new geos::geom::GeometryFactory(new geos::geom::PrecisionModel(), 4326);
@@ -84,6 +85,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
             switch (reader.readNext()) {
                 case QXmlStreamReader::StartElement:
                     if (reader.name().toString() == "node") {
+                        // Store all nodes
                         geos::geom::Coordinate coordinate;
                         int nodeId = reader.attributes().value("id").toString().toInt();
                         coordinate.x = reader.attributes().value("lat").toString().toDouble();
@@ -100,9 +102,13 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             address = new Address();
                             address->houseNumber = reader.attributes().value("v").toString();
                         } else if (reader.attributes().value("k") == "addr:street") {
-                            address->street = reader.attributes().value("v").toString();
+                            // We don't care what street instance the address is
+                            // linked to. If there is any address with the same number
+                            // and street name, skip it.
+                            address->street.name = reader.attributes().value("v").toString();
                             existingAddresses.append(*address);
                         } else if (current == Way && reader.attributes().value("k") == "building") {
+                            // No buildings...yet.
                             current = None;
                             delete street;
                         } else if (reader.attributes().value("k") == "highway"
@@ -119,13 +125,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
                 case QXmlStreamReader::EndElement:
                     if (current == WayConfirmed && reader.name().toString() == "way") {
-                        Street mainStreet = streets.value(street->name);
-                        if (!mainStreet.name.isEmpty()) {
-                            mainStreet.nodeIndices.append(street->nodeIndices);
-                            delete street;
-                        } else {
-                            streets.insert(street->name.toUpper(), *street);
-                        }
+                        streets.insertMulti(street->name.toUpper(), street);
                         current = None;
                     }
                     break;
@@ -133,16 +133,26 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
             }
         }
+        for (int i = 0; i < streets.size(); i++) {
+            Street* street = streets.values().at(i);
+            geos::geom::CoordinateSequence* nodePoints = factory
+                    ->getCoordinateSequenceFactory()->create(street->nodeIndices.size(), 0);
+            for (int j = 0; j < street->nodeIndices.size(); j++) {
+                nodePoints->add(*(nodes.value(street->nodeIndices.at(j))->getCoordinate()));
+            }
+            street->path = factory->createLineString(nodePoints);
+        }
+        // Debug output
         widget.textBrowser->insertPlainText("Streets:\n");
         for (int i = 0; i < streets.size(); i++) {
-            Street street = streets.values().at(i);
-            widget.textBrowser->insertPlainText(street.name + "\n");
+            Street* street = streets.values().at(i);
+            widget.textBrowser->insertPlainText(street->name + "\n");
         }
         widget.textBrowser->insertPlainText("\n");
         widget.textBrowser->insertPlainText("Existing Addresses:\n");
         for (int i = 0; i < existingAddresses.size(); i++) {
             Address address = existingAddresses.at(i);
-            widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
+            widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
         }
         readAddressFile();
     } else {
@@ -172,6 +182,7 @@ void MainForm::readAddressFile() {
                     coordinate.x = reader.attributes().value("lat").toString().toDouble();
                     coordinate.y = reader.attributes().value("lon").toString().toDouble();
                     address->coordinate = factory->createPoint(coordinate);
+                    // Check to see if the address is inside the BBox
                     skip = !(coordinate.x <= widget.doubleSpinBox->value() &&
                             coordinate.x >= widget.doubleSpinBox_3->value() &&
                             coordinate.y >= widget.doubleSpinBox_2->value() &&
@@ -181,8 +192,18 @@ void MainForm::readAddressFile() {
                         address->houseNumber = reader.attributes().value("v").toString();
                     } else if (reader.attributes().value("k") == "addr:street") {
                         QString streetName = reader.attributes().value("v").toString();
-                        if (!streets.value(streetName.toUpper()).name.isEmpty()) {
-                            address->street = streets.value(streetName.toUpper()).name;
+                        QList<Street*> matches = streets.values(streetName.toUpper());
+                        if (!matches.isEmpty()) {
+                            Street* closestStreet = matches.at(0);
+                            double minDistance = address->coordinate->distance(closestStreet->path);
+                            for (int i = 1; i < matches.size(); i++) {
+                                double distance = address->coordinate->distance(matches.at(i)->path);
+                                if (distance < minDistance) {
+                                    closestStreet = matches.at(i);
+                                    minDistance = distance;
+                                }
+                            }
+                            address->street = *closestStreet;
                         }
                     } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
                         if (reader.attributes().value("v") == "driv") {
@@ -197,7 +218,7 @@ void MainForm::readAddressFile() {
                 if (reader.name().toString() == "node") {
                     if (!skip) {
                         if (!address->houseNumber.isEmpty()
-                                && !address->street.isEmpty()
+                                && !address->street.name.isEmpty()
                                 && !existingAddresses.contains(*address)
                                 && address->addressType != Address::Other) {
                             int i = newAddresses.indexOf(*address);
@@ -237,7 +258,8 @@ void MainForm::readAddressFile() {
     widget.textBrowser->insertPlainText("New Addresses:\n");
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
-        widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street + "\n");
+        widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
+        qDebug() << "Distance: " << address.coordinate->distance(address.street.path);
     }
     outputChangeFile();
 }
@@ -281,7 +303,7 @@ void MainForm::outputChangeFile() {
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "addr:street");
-            writer.writeAttribute("v", address.street);
+            writer.writeAttribute("v", address.street.name);
             writer.writeEndElement();
 
             writer.writeEndElement();

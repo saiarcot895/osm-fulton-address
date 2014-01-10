@@ -8,14 +8,15 @@
 #ifndef STREET_H
 #define	STREET_H
 
-#include "Coordinate.h"
 #include "QString"
 #include "QList"
+#include <geos/geom/LineString.h>
 
 class Street {
 public:
     QString name;
     QList<int> nodeIndices;
+    geos::geom::LineString* path;
     bool operator==(Street street1) const;
 };
 

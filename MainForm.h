@@ -31,7 +31,7 @@ private:
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<int, geos::geom::Point*> nodes;
-    QHash<QString, Street> streets;
+    QHash<QString, Street*> streets;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
     enum FeatureType {

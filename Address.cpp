@@ -1,4 +1,5 @@
 #include "Address.h"
+#include "Street.h"
 
 Address::Address() {
     addressType = Other;
@@ -7,5 +8,5 @@ Address::Address() {
 
 
 bool Address::operator==(Address address) const {
-    return houseNumber == address.houseNumber && street == address.street;
+    return houseNumber == address.houseNumber && street.name == address.street.name;
 }

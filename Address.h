@@ -8,7 +8,7 @@
 #ifndef ADDRESS_H
 #define	ADDRESS_H
 
-#include "Coordinate.h"
+#include "Street.h"
 #include <geos/geom/Point.h>
 #include "QString"
 
@@ -21,7 +21,7 @@ public:
     };
 
     QString houseNumber;
-    QString street;
+    Street street;
     geos::geom::Point* coordinate;
     AddressType addressType;
     bool allowStructural;
