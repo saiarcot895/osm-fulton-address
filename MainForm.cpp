@@ -259,7 +259,44 @@ void MainForm::readAddressFile() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
         widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
-        qDebug() << "Distance: " << address.coordinate->distance(address.street.path) * 111000;
+    }
+    validateAddresses();
+}
+
+void MainForm::validateAddresses() {
+    widget.textBrowser->append("");
+    widget.textBrowser->append("Address Validations");
+    for (int i = 0; i < newAddresses.size(); i++) {
+        Address address = newAddresses.at(i);
+
+        double distance = address.coordinate->distance(address.street.path) * 111000;
+
+        if (distance > 100) {
+            widget.textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
+                .arg(address.street.name));
+            newAddresses.removeOne(address);
+            i--;
+        } else if (distance < 5) {
+            widget.textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
+                .arg(address.street.name));
+            newAddresses.removeOne(address);
+            i--;
+        }
+    }
+    for (int i = 0; i < newAddresses.size(); i++) {
+        Address address1 = newAddresses.at(i);
+        for (int j = i + 1; j < newAddresses.size(); j++) {
+            Address address2 = newAddresses.at(j);
+
+            double distance = address1.coordinate->distance(address2.coordinate) * 111000;
+
+            if (distance < 4) {
+                widget.textBrowser->append(tr("Too close to another address: %1 %2")
+                    .arg(address2.houseNumber).arg(address2.street.name));
+                newAddresses.removeOne(address2);
+                j--;
+            }
+        }
     }
     outputChangeFile();
 }
@@ -282,7 +319,6 @@ void MainForm::outputChangeFile() {
                 fullFileName = tr("%1_%2.%3").arg(baseName).arg(i).arg(extension);
             }
         }
-        qDebug() << fullFileName;
         QFile file(fullFileName);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             continue;
@@ -293,10 +329,6 @@ void MainForm::outputChangeFile() {
         outputStartOfFile(writer);
         for (int j = i * 5000; j < newAddresses.size() && j < (i + 1) * 5000; j++) {
             Address address = newAddresses.at(j);
-
-            if (address.coordinate->distance(address.street.path) * 111000 > 100) {
-                continue;
-            }
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));

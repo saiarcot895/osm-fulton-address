@@ -43,6 +43,7 @@ private:
     };
 
     void readAddressFile();
+    void validateAddresses();
     void outputChangeFile();
     void outputStartOfFile(QXmlStreamWriter& writer);
     void outputEndOfFile(QXmlStreamWriter& writer);
