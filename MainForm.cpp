@@ -40,7 +40,12 @@ void MainForm::setOutputFile() {
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save File"), "",
             tr("OsmChange File (*.osc)"));
     if (fileName.length() != 0) {
-        widget.lineEdit_2->setText(fileName);
+        if (fileName.endsWith(".osc")) {
+            widget.lineEdit_2->setText(fileName);
+        } else {
+            widget.lineEdit_2->setText(fileName + ".osc");
+        }
+
     }
 }
 
@@ -236,11 +241,23 @@ void MainForm::readAddressFile() {
 
 void MainForm::outputChangeFile() {
     for (int i = 0; i <= newAddresses.size() / 5000; i++) {
-        QFile file(i == 0
-                ? tr("%1.osc").arg(widget.lineEdit_2->text())
-                : tr("%1_%2.osc").arg(widget.lineEdit_2->text()).arg(i));
+        QString fullFileName = widget.lineEdit_2->text();
+        if (i != 0) {
+            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
+                fullFileName = tr("%1_%2").arg(widget.lineEdit_2->text()).arg(i);
+            }
+            else {
+                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
+                        ->text().lastIndexOf("."));
+                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
+                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
+                fullFileName = tr("%1_%2.%3").arg(baseName).arg(i).arg(extension);
+            }
+        }
+        qDebug() << fullFileName;
+        QFile file(fullFileName);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            return;
+            continue;
         }
 
         QXmlStreamWriter writer(&file);
