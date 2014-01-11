@@ -88,8 +88,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         // Store all nodes
                         geos::geom::Coordinate coordinate;
                         int nodeId = reader.attributes().value("id").toString().toInt();
-                        coordinate.x = reader.attributes().value("lat").toString().toDouble();
-                        coordinate.y = reader.attributes().value("lon").toString().toDouble();
+                        coordinate.y = reader.attributes().value("lat").toString().toDouble();
+                        coordinate.x = reader.attributes().value("lon").toString().toDouble();
                         nodes.insert(nodeId, factory->createPoint(coordinate));
                     } else if (reader.name().toString() == "way") {
                         // A way is typically either be a road or a building. For
@@ -179,14 +179,14 @@ void MainForm::readAddressFile() {
                 if (reader.name().toString() == "node") {
                     address = new Address();
                     geos::geom::Coordinate coordinate;
-                    coordinate.x = reader.attributes().value("lat").toString().toDouble();
-                    coordinate.y = reader.attributes().value("lon").toString().toDouble();
+                    coordinate.y = reader.attributes().value("lat").toString().toDouble();
+                    coordinate.x = reader.attributes().value("lon").toString().toDouble();
                     address->coordinate = factory->createPoint(coordinate);
                     // Check to see if the address is inside the BBox
-                    skip = !(coordinate.x <= widget.doubleSpinBox->value() &&
-                            coordinate.x >= widget.doubleSpinBox_3->value() &&
-                            coordinate.y >= widget.doubleSpinBox_2->value() &&
-                            coordinate.y <= widget.doubleSpinBox_4->value());
+                    skip = !(coordinate.y <= widget.doubleSpinBox->value() &&
+                            coordinate.y >= widget.doubleSpinBox_3->value() &&
+                            coordinate.x >= widget.doubleSpinBox_2->value() &&
+                            coordinate.x <= widget.doubleSpinBox_4->value());
                 } else if (reader.name().toString() == "tag" && !skip) {
                     if (reader.attributes().value("k") == "addr:housenumber") {
                         address->houseNumber = reader.attributes().value("v").toString();
@@ -259,12 +259,15 @@ void MainForm::readAddressFile() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
         widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
-        qDebug() << "Distance: " << address.coordinate->distance(address.street.path);
+        qDebug() << "Distance: " << address.coordinate->distance(address.street.path) * 111000;
     }
     outputChangeFile();
 }
 
 void MainForm::outputChangeFile() {
+    if (widget.lineEdit_2->text().isEmpty()) {
+        return;
+    }
     for (int i = 0; i <= newAddresses.size() / 5000; i++) {
         QString fullFileName = widget.lineEdit_2->text();
         if (i != 0) {
@@ -293,8 +296,8 @@ void MainForm::outputChangeFile() {
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));
-            writer.writeAttribute("lat", QString::number(address.coordinate->getX(), 'g', 12));
-            writer.writeAttribute("lon", QString::number(address.coordinate->getY(), 'g', 12));
+            writer.writeAttribute("lat", QString::number(address.coordinate->getY(), 'g', 12));
+            writer.writeAttribute("lon", QString::number(address.coordinate->getX(), 'g', 12));
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "addr:houseNumber");
