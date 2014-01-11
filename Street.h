@@ -15,7 +15,7 @@
 class Street {
 public:
     QString name;
-    QList<int> nodeIndices;
+    QList<uint> nodeIndices;
     geos::geom::LineString* path;
     bool operator==(Street street1) const;
 };

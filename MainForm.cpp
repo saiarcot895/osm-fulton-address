@@ -87,7 +87,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     if (reader.name().toString() == "node") {
                         // Store all nodes
                         geos::geom::Coordinate coordinate;
-                        int nodeId = reader.attributes().value("id").toString().toInt();
+                        uint nodeId = reader.attributes().value("id").toString().toUInt();
                         coordinate.y = reader.attributes().value("lat").toString().toDouble();
                         coordinate.x = reader.attributes().value("lon").toString().toDouble();
                         nodes.insert(nodeId, factory->createPoint(coordinate));
@@ -120,7 +120,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             street->name = reader.attributes().value("v").toString();
                         }
                     } else if (reader.name().toString() == "nd" && current == Way) {
-                        street->nodeIndices.append(reader.attributes().value("ref").toString().toInt());
+                        street->nodeIndices.append(reader.attributes().value("ref").toString().toUInt());
                     }
                     break;
                 case QXmlStreamReader::EndElement:
@@ -293,6 +293,10 @@ void MainForm::outputChangeFile() {
         outputStartOfFile(writer);
         for (int j = i * 5000; j < newAddresses.size() && j < (i + 1) * 5000; j++) {
             Address address = newAddresses.at(j);
+
+            if (address.coordinate->distance(address.street.path) * 111000 > 100) {
+                continue;
+            }
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));

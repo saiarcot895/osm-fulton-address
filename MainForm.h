@@ -30,7 +30,7 @@ private:
     Ui::mainForm widget;
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
-    QHash<int, geos::geom::Point*> nodes;
+    QHash<uint, geos::geom::Point*> nodes;
     QHash<QString, Street*> streets;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
