@@ -50,13 +50,9 @@ void MainForm::setOutputFile() {
 }
 
 void MainForm::convert() {
+    widget.pushButton_2->setEnabled(false);
+    qApp->processEvents();
     downloadOSM();
-    // Read in streets and existing addresses
-    // Read and filter the address XML to include only those within the BBox
-    // and matching requirements
-    // For each filtered address, check for a matching street, and correct case
-    // Verify the address point is close to the street
-    // Output list of points to an OSM change file
 }
 
 void MainForm::downloadOSM() {
@@ -285,6 +281,8 @@ void MainForm::outputChangeFile() {
         }
         outputEndOfFile(writer);
     }
+
+    widget.pushButton_2->setEnabled(true);
 }
 
 void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
