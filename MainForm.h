@@ -44,6 +44,7 @@ private:
     void outputChangeFile();
     void outputStartOfFile(QXmlStreamWriter& writer);
     void outputEndOfFile(QXmlStreamWriter& writer);
+    void cleanup();
     QString expandQuadrant(QString street);
 private slots:
     void readOSM(QNetworkReply* reply);

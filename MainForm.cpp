@@ -146,12 +146,15 @@ void MainForm::readOSM(QNetworkReply* reply) {
     } else {
         widget.textBrowser->insertPlainText(reply->errorString());
         qCritical() << reply->errorString();
+        cleanup();
     }
 }
 
 void MainForm::readAddressFile() {
     QFile file(widget.lineEdit->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCritical() << "Error: Couldn't open " << widget.lineEdit->text();
+        cleanup();
         return;
     }
 
@@ -281,8 +284,7 @@ void MainForm::outputChangeFile() {
         }
         outputEndOfFile(writer);
     }
-
-    widget.pushButton_2->setEnabled(true);
+    cleanup();
 }
 
 void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
@@ -296,6 +298,15 @@ void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
     writer.writeEndElement();
     writer.writeEndElement();
     writer.writeEndDocument();
+}
+
+void MainForm::cleanup() {
+    nodes.clear();
+    streets.clear();
+    existingAddresses.clear();
+    newAddresses.clear();
+
+    widget.pushButton_2->setEnabled(true);
 }
 
 QString MainForm::expandQuadrant(QString street) {
