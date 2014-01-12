@@ -142,17 +142,20 @@ void MainForm::readOSM(QNetworkReply* reply) {
             }
             street->path = factory->createLineString(nodePoints);
         }
-        // Debug output
-        widget.textBrowser->insertPlainText("Streets:\n");
-        for (int i = 0; i < streets.size(); i++) {
-            Street* street = streets.values().at(i);
-            widget.textBrowser->insertPlainText(street->name + "\n");
+        if (widget.checkBox->isChecked()) {
+            widget.textBrowser->append("Streets:");
+            for (int i = 0; i < streets.size(); i++) {
+                Street* street = streets.values().at(i);
+                widget.textBrowser->append(street->name);
+            }
         }
-        widget.textBrowser->insertPlainText("\n");
-        widget.textBrowser->insertPlainText("Existing Addresses:\n");
-        for (int i = 0; i < existingAddresses.size(); i++) {
-            Address address = existingAddresses.at(i);
-            widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
+        if (widget.checkBox_2->isChecked()) {
+            widget.textBrowser->append("");
+            widget.textBrowser->append("Existing Addresses:");
+            for (int i = 0; i < existingAddresses.size(); i++) {
+                Address address = existingAddresses.at(i);
+                widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+            }
         }
         readAddressFile();
     } else {
@@ -254,31 +257,39 @@ void MainForm::readAddressFile() {
                 break;
         }
     }
-    widget.textBrowser->insertPlainText("\n");
-    widget.textBrowser->insertPlainText("New Addresses:\n");
-    for (int i = 0; i < newAddresses.size(); i++) {
-        Address address = newAddresses.at(i);
-        widget.textBrowser->insertPlainText(address.houseNumber + " " + address.street.name + "\n");
+    if (widget.checkBox_3->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("New Addresses:");
+        for (int i = 0; i < newAddresses.size(); i++) {
+            Address address = newAddresses.at(i);
+            widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+        }
     }
     validateAddresses();
 }
 
 void MainForm::validateAddresses() {
-    widget.textBrowser->append("");
-    widget.textBrowser->append("Address Validations");
+    if (widget.checkBox_4->isChecked() || widget.checkBox_5->isChecked() || widget.checkBox_6->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("Address Validations");
+    }
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
 
         double distance = address.coordinate->distance(address.street.path) * 111000;
 
         if (distance > 100) {
-            widget.textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
-                .arg(address.street.name));
+            if (widget.checkBox_5->isChecked()) {
+                widget.textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
+                        .arg(address.street.name));
+            }
             newAddresses.removeOne(address);
             i--;
         } else if (distance < 5) {
-            widget.textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
-                .arg(address.street.name));
+            if (widget.checkBox_6->isChecked()) {
+                widget.textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
+                        .arg(address.street.name));
+            }
             newAddresses.removeOne(address);
             i--;
         }
@@ -291,8 +302,10 @@ void MainForm::validateAddresses() {
             double distance = address1.coordinate->distance(address2.coordinate) * 111000;
 
             if (distance < 4) {
-                widget.textBrowser->append(tr("Too close to another address: %1 %2")
-                    .arg(address2.houseNumber).arg(address2.street.name));
+                if (widget.checkBox_4->isChecked()) {
+                    widget.textBrowser->append(tr("Too close to another address: %1 %2")
+                        .arg(address2.houseNumber).arg(address2.street.name));
+                }
                 newAddresses.removeOne(address2);
                 j--;
             }
@@ -349,6 +362,17 @@ void MainForm::outputChangeFile() {
         }
         outputEndOfFile(writer);
     }
+
+    // Output the log to a file
+    QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2->text()
+            .lastIndexOf("."));
+    QFile logFile(baseName + ".log");
+    if (logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream writer(&logFile);
+        writer << widget.textBrowser->document()->toPlainText();
+        writer.flush();
+    }
+    
     cleanup();
 }
 
