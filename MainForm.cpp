@@ -381,7 +381,7 @@ void MainForm::outputChangeFile() {
     QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2->text()
             .lastIndexOf("."));
     QFile logFile(baseName + ".log");
-    if (logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream writer(&logFile);
         writer << widget.textBrowser->document()->toPlainText();
         writer.flush();
