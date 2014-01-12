@@ -22,6 +22,8 @@ public:
 
     QString houseNumber;
     Street street;
+    QString city;
+    int zipCode;
     geos::geom::Point* coordinate;
     AddressType addressType;
     bool allowStructural;

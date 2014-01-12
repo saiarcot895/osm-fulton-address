@@ -208,6 +208,10 @@ void MainForm::readAddressFile() {
                             }
                             address->street = *closestStreet;
                         }
+                    } else if (reader.attributes().value("k") == "addr:city") {
+                        address->city = toTitleCase(reader.attributes().value("v").toString());
+                    } else if (reader.attributes().value("k") == "addr:postcode") {
+                        address->zipCode = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
                         if (reader.attributes().value("v") == "driv") {
                             address->addressType = Address::Primary;
@@ -358,6 +362,16 @@ void MainForm::outputChangeFile() {
             writer.writeAttribute("v", address.street.name);
             writer.writeEndElement();
 
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:city");
+            writer.writeAttribute("v", address.city);
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:postcode");
+            writer.writeAttribute("v", QString::number(address.zipCode));
+            writer.writeEndElement();
+
             writer.writeEndElement();
         }
         outputEndOfFile(writer);
@@ -372,7 +386,7 @@ void MainForm::outputChangeFile() {
         writer << widget.textBrowser->document()->toPlainText();
         writer.flush();
     }
-    
+
     cleanup();
 }
 
@@ -401,6 +415,21 @@ void MainForm::cleanup() {
 QString MainForm::expandQuadrant(QString street) {
     return street.replace("NE", "Northeast").replace("NW", "Northwest")
             .replace("SE", "Southeast").replace("SW", "Southwest");
+}
+
+QString MainForm::toTitleCase(QString str) {
+    QRegExp re("\\W\\w");
+    int pos = -1;
+    str = str.toLower();
+    QChar *base = str.data();
+    QChar *ch;
+    do {
+        pos++;
+        ch = base + pos;
+        pos = str.indexOf(re, pos);
+        *ch = ch->toUpper();
+    } while (pos >= 0);
+    return str;
 }
 
 MainForm::~MainForm() {

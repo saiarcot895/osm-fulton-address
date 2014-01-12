@@ -49,6 +49,7 @@ private:
     void outputEndOfFile(QXmlStreamWriter& writer);
     void cleanup();
     QString expandQuadrant(QString street);
+    QString toTitleCase(QString street);
 private slots:
     void readOSM(QNetworkReply* reply);
 };
