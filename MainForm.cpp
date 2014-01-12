@@ -336,7 +336,7 @@ void MainForm::outputChangeFile() {
             writer.writeAttribute("lon", QString::number(address.coordinate->getX(), 'g', 12));
 
             writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:houseNumber");
+            writer.writeAttribute("k", "addr:housenumber");
             writer.writeAttribute("v", address.houseNumber);
             writer.writeEndElement();
 
