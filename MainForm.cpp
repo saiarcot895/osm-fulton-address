@@ -140,7 +140,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
             for (int j = 0; j < street->nodeIndices.size(); j++) {
                 nodePoints->add(*(nodes.value(street->nodeIndices.at(j))->getCoordinate()));
             }
-            street->path = factory->createLineString(nodePoints);
+            street->path = QSharedPointer<geos::geom::LineString>(factory->createLineString(nodePoints));
         }
         if (widget.checkBox->isChecked()) {
             widget.textBrowser->append("Streets:");
@@ -184,7 +184,7 @@ void MainForm::readAddressFile() {
                     geos::geom::Coordinate coordinate;
                     coordinate.y = reader.attributes().value("lat").toString().toDouble();
                     coordinate.x = reader.attributes().value("lon").toString().toDouble();
-                    address->coordinate = factory->createPoint(coordinate);
+                    address->coordinate = QSharedPointer<geos::geom::Point>(factory->createPoint(coordinate));
                     // Check to see if the address is inside the BBox
                     skip = !(coordinate.y <= widget.doubleSpinBox->value() &&
                             coordinate.y >= widget.doubleSpinBox_3->value() &&
@@ -198,9 +198,9 @@ void MainForm::readAddressFile() {
                         QList<Street*> matches = streets.values(streetName.toUpper());
                         if (!matches.isEmpty()) {
                             Street* closestStreet = matches.at(0);
-                            double minDistance = address->coordinate->distance(closestStreet->path);
+                            double minDistance = address->coordinate.data()->distance(closestStreet->path.data());
                             for (int i = 1; i < matches.size(); i++) {
-                                double distance = address->coordinate->distance(matches.at(i)->path);
+                                double distance = address->coordinate.data()->distance(matches.at(i)->path.data());
                                 if (distance < minDistance) {
                                     closestStreet = matches.at(i);
                                     minDistance = distance;
@@ -280,7 +280,7 @@ void MainForm::validateAddresses() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
 
-        double distance = address.coordinate->distance(address.street.path) * 111000;
+        double distance = address.coordinate.data()->distance(address.street.path.data()) * 111000;
 
         if (distance > 100) {
             if (widget.checkBox_5->isChecked()) {
@@ -303,7 +303,7 @@ void MainForm::validateAddresses() {
         for (int j = i + 1; j < newAddresses.size(); j++) {
             Address address2 = newAddresses.at(j);
 
-            double distance = address1.coordinate->distance(address2.coordinate) * 111000;
+            double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * 111000;
 
             if (distance < 4) {
                 if (widget.checkBox_4->isChecked()) {
@@ -349,8 +349,8 @@ void MainForm::outputChangeFile() {
 
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(j + 1));
-            writer.writeAttribute("lat", QString::number(address.coordinate->getY(), 'g', 12));
-            writer.writeAttribute("lon", QString::number(address.coordinate->getX(), 'g', 12));
+            writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
+            writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "addr:housenumber");

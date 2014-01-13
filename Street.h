@@ -11,15 +11,14 @@
 #include "QString"
 #include "QList"
 #include <geos/geom/LineString.h>
+#include "QSharedPointer"
 
 class Street {
 public:
     QString name;
     QList<uint> nodeIndices;
-    geos::geom::LineString* path;
+    QSharedPointer<geos::geom::LineString> path;
 
-    Street();
-    virtual ~Street();
     bool operator==(Street street) const;
 };
 

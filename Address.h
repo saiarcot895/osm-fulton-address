@@ -11,6 +11,7 @@
 #include "Street.h"
 #include <geos/geom/Point.h>
 #include "QString"
+#include "QSharedPointer"
 
 class Address {
 public:
@@ -24,12 +25,11 @@ public:
     Street street;
     QString city;
     int zipCode;
-    geos::geom::Point* coordinate;
+    QSharedPointer<geos::geom::Point> coordinate;
     AddressType addressType;
     bool allowStructural;
 
     Address();
-    virtual ~Address();
     bool operator==(Address address) const;
 };
 
