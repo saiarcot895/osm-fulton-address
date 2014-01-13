@@ -263,7 +263,7 @@ void MainForm::readAddressFile() {
     }
     if (widget.checkBox_3->isChecked()) {
         widget.textBrowser->append("");
-        widget.textBrowser->append("New Addresses:");
+        widget.textBrowser->append("New Addresses (before vvalidation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
             widget.textBrowser->append(address.houseNumber + " " + address.street.name);
@@ -318,6 +318,16 @@ void MainForm::validateAddresses() {
             }
         }
     }
+
+    if (widget.checkBox_7->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("New Addresses (after validation):");
+        for (int i = 0; i < newAddresses.size(); i++) {
+            Address address = newAddresses.at(i);
+            widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+        }
+    }
+
     outputChangeFile();
 }
 
