@@ -15,6 +15,7 @@
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
 #include "QXmlStreamWriter"
+#include "QFile"
 
 class MainForm : public QMainWindow {
     Q_OBJECT
@@ -34,6 +35,7 @@ private:
     QHash<QString, Street*> streets;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
+    QList<Address> excludedAddresses;
     enum FeatureType {
         None = 0,
         Node,
@@ -45,6 +47,7 @@ private:
     void readAddressFile();
     void validateAddresses();
     void outputChangeFile();
+    void writeXMLFile(QFile& file, QList<Address>& address, int i);
     void outputStartOfFile(QXmlStreamWriter& writer);
     void outputEndOfFile(QXmlStreamWriter& writer);
     void cleanup();

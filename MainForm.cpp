@@ -288,6 +288,7 @@ void MainForm::validateAddresses() {
                         .arg(address.street.name));
             }
             newAddresses.removeOne(address);
+            excludedAddresses.append(address);
             i--;
         } else if (distance < 5) {
             if (widget.checkBox_6->isChecked()) {
@@ -295,6 +296,7 @@ void MainForm::validateAddresses() {
                         .arg(address.street.name));
             }
             newAddresses.removeOne(address);
+            excludedAddresses.append(address);
             i--;
         }
     }
@@ -311,6 +313,7 @@ void MainForm::validateAddresses() {
                         .arg(address2.houseNumber).arg(address2.street.name));
                 }
                 newAddresses.removeOne(address2);
+                excludedAddresses.append(address2);
                 j--;
             }
         }
@@ -341,44 +344,40 @@ void MainForm::outputChangeFile() {
             continue;
         }
 
-        QXmlStreamWriter writer(&file);
-        writer.setAutoFormatting(true);
-        outputStartOfFile(writer);
-        for (int j = i * 5000; j < newAddresses.size() && j < (i + 1) * 5000; j++) {
-            Address address = newAddresses.at(j);
+        writeXMLFile(file, newAddresses, i);
+    }
 
-            writer.writeStartElement("node");
-            writer.writeAttribute("id", tr("-%1").arg(j + 1));
-            writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
-            writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:housenumber");
-            writer.writeAttribute("v", address.houseNumber);
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:street");
-            writer.writeAttribute("v", address.street.name);
-            writer.writeEndElement();
-
-            if (!address.city.isEmpty()) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:city");
-                writer.writeAttribute("v", address.city);
-                writer.writeEndElement();
+    for (int i = 0; i <= excludedAddresses.size() / 5000; i++) {
+        QString fullFileName = widget.lineEdit_2->text();
+        if (i == 0) {
+            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
+                fullFileName = tr("%1_errors").arg(widget.lineEdit_2->text());
             }
-
-            if (address.zipCode != 0) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:postcode");
-                writer.writeAttribute("v", QString::number(address.zipCode));
-                writer.writeEndElement();
+            else {
+                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
+                        ->text().lastIndexOf("."));
+                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
+                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
+                fullFileName = tr("%1_errors.%2").arg(baseName).arg(extension);
             }
-
-            writer.writeEndElement();
+        } else {
+            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
+                fullFileName = tr("%1_errors_%2").arg(widget.lineEdit_2->text()).arg(i);
+            }
+            else {
+                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
+                        ->text().lastIndexOf("."));
+                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
+                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
+                fullFileName = tr("%1_errors_%2.%3").arg(baseName).arg(i).arg(extension);
+            }
         }
-        outputEndOfFile(writer);
+        QFile file(fullFileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            continue;
+        }
+
+        writeXMLFile(file, excludedAddresses, i);
     }
 
     // Output the log to a file
@@ -392,6 +391,47 @@ void MainForm::outputChangeFile() {
     }
 
     cleanup();
+}
+
+void MainForm::writeXMLFile(QFile& file, QList<Address>& addresses, int i) {
+    QXmlStreamWriter writer(&file);
+    writer.setAutoFormatting(true);
+    outputStartOfFile(writer);
+    for (int j = i * 5000; j < addresses.size() && j < (i + 1) * 5000; j++) {
+        Address address = addresses.at(j);
+
+        writer.writeStartElement("node");
+        writer.writeAttribute("id", tr("-%1").arg(j + 1));
+        writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
+        writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:housenumber");
+        writer.writeAttribute("v", address.houseNumber);
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:street");
+        writer.writeAttribute("v", address.street.name);
+        writer.writeEndElement();
+
+        if (!address.city.isEmpty()) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:city");
+            writer.writeAttribute("v", address.city);
+            writer.writeEndElement();
+        }
+
+        if (address.zipCode != 0) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:postcode");
+            writer.writeAttribute("v", QString::number(address.zipCode));
+            writer.writeEndElement();
+        }
+
+        writer.writeEndElement();
+    }
+    outputEndOfFile(writer);
 }
 
 void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
