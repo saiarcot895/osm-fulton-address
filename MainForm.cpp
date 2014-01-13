@@ -362,15 +362,19 @@ void MainForm::outputChangeFile() {
             writer.writeAttribute("v", address.street.name);
             writer.writeEndElement();
 
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:city");
-            writer.writeAttribute("v", address.city);
-            writer.writeEndElement();
+            if (!address.city.isEmpty()) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:city");
+                writer.writeAttribute("v", address.city);
+                writer.writeEndElement();
+            }
 
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:postcode");
-            writer.writeAttribute("v", QString::number(address.zipCode));
-            writer.writeEndElement();
+            if (address.zipCode != 0) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:postcode");
+                writer.writeAttribute("v", QString::number(address.zipCode));
+                writer.writeEndElement();
+            }
 
             writer.writeEndElement();
         }
