@@ -17,7 +17,10 @@ public:
     QString name;
     QList<uint> nodeIndices;
     geos::geom::LineString* path;
-    bool operator==(Street street1) const;
+
+    Street();
+    virtual ~Street();
+    bool operator==(Street street) const;
 };
 
 #endif	/* STREET_H */

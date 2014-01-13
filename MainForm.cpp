@@ -404,7 +404,15 @@ void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
 }
 
 void MainForm::cleanup() {
+    for (int i = 0; i < nodes.size(); i++) {
+        geos::geom::Point* point = nodes.values().at(i);
+        delete point;
+    }
     nodes.clear();
+    for (int i = 0; i < streets.size(); i++) {
+        Street* street = streets.values().at(i);
+        delete street;
+    }
     streets.clear();
     existingAddresses.clear();
     newAddresses.clear();
@@ -434,4 +442,5 @@ QString MainForm::toTitleCase(QString str) {
 
 MainForm::~MainForm() {
     delete nam;
+    delete factory;
 }

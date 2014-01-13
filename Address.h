@@ -29,6 +29,7 @@ public:
     bool allowStructural;
 
     Address();
+    virtual ~Address();
     bool operator==(Address address) const;
 };
 
