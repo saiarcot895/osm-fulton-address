@@ -6,6 +6,6 @@ Address::Address() {
     allowStructural = true;
 }
 
-bool Address::operator==(Address address) const {
+bool Address::operator==(const Address& address) const {
     return houseNumber == address.houseNumber && street.name == address.street.name;
 }

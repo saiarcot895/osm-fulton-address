@@ -19,7 +19,7 @@ public:
     QList<uint> nodeIndices;
     QSharedPointer<geos::geom::LineString> path;
 
-    bool operator==(Street street) const;
+    bool operator==(const Street& street) const;
 };
 
 #endif	/* STREET_H */

@@ -30,7 +30,7 @@ public:
     bool allowStructural;
 
     Address();
-    bool operator==(Address address) const;
+    bool operator==(const Address& address) const;
 };
 
 #endif	/* ADDRESS_H */

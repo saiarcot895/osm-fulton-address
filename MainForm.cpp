@@ -133,8 +133,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
             }
         }
-        for (int i = 0; i < streets.size(); i++) {
-            Street* street = streets.values().at(i);
+        QList<Street*> streetValues = streets.values();
+        for (int i = 0; i < streetValues.size(); i++) {
+            Street* street = streetValues.at(i);
             geos::geom::CoordinateSequence* nodePoints = factory
                     ->getCoordinateSequenceFactory()->create(street->nodeIndices.size(), 0);
             for (int j = 0; j < street->nodeIndices.size(); j++) {
@@ -144,8 +145,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
         }
         if (widget.checkBox->isChecked()) {
             widget.textBrowser->append("Streets:");
-            for (int i = 0; i < streets.size(); i++) {
-                Street* street = streets.values().at(i);
+            QList<Street*> streetValues = streets.values();
+            for (int i = 0; i < streetValues.size(); i++) {
+                Street* street = streetValues.at(i);
                 widget.textBrowser->append(street->name);
             }
         }
@@ -458,13 +460,15 @@ void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
 }
 
 void MainForm::cleanup() {
-    for (int i = 0; i < nodes.size(); i++) {
-        geos::geom::Point* point = nodes.values().at(i);
+    QList<geos::geom::Point*> pointValues = nodes.values();
+    for (int i = 0; i < pointValues.size(); i++) {
+        geos::geom::Point* point = pointValues.at(i);
         delete point;
     }
     nodes.clear();
-    for (int i = 0; i < streets.size(); i++) {
-        Street* street = streets.values().at(i);
+    QList<Street*> streetValues = streets.values();
+    for (int i = 0; i < streetValues.size(); i++) {
+        Street* street = streetValues.at(i);
         delete street;
     }
     streets.clear();
