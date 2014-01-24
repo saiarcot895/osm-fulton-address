@@ -46,6 +46,7 @@ private:
 
     void readAddressFile();
     void validateAddresses();
+    void validateBetweenAddresses();
     void outputChangeFile();
     void writeXMLFile(QFile& file, QList<Address>& address, int i);
     void outputStartOfFile(QXmlStreamWriter& writer);

@@ -302,24 +302,7 @@ void MainForm::validateAddresses() {
             i--;
         }
     }
-    for (int i = 0; i < newAddresses.size(); i++) {
-        Address address1 = newAddresses.at(i);
-        for (int j = i + 1; j < newAddresses.size(); j++) {
-            Address address2 = newAddresses.at(j);
-
-            double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * 111000;
-
-            if (distance < 4) {
-                if (widget.checkBox_4->isChecked()) {
-                    widget.textBrowser->append(tr("Too close to another address: %1 %2")
-                        .arg(address2.houseNumber).arg(address2.street.name));
-                }
-                newAddresses.removeOne(address2);
-                excludedAddresses.append(address2);
-                j--;
-            }
-        }
-    }
+    validateBetweenAddresses();
 
     if (widget.checkBox_7->isChecked()) {
         widget.textBrowser->append("");
@@ -332,6 +315,50 @@ void MainForm::validateAddresses() {
 
     outputChangeFile();
 }
+
+void MainForm::validateBetweenAddresses() {
+    int sections = 2;
+    double lonSection = (widget.doubleSpinBox_4->value() - widget.doubleSpinBox_2->value()) / sections;
+    double latSection = (widget.doubleSpinBox->value() - widget.doubleSpinBox_3->value()) / sections;
+
+    for (int region = 0; region < sections * sections; region++) {
+        double minLon = widget.doubleSpinBox_2->value() + (region % sections) * lonSection;
+        double minLat = widget.doubleSpinBox->value() - (region / sections) * latSection;
+        double maxLon = minLon + lonSection;
+        double maxLat = minLat - latSection;
+
+        for (int i = 0; i < newAddresses.size(); i++) {
+            Address address1 = newAddresses.at(i);
+            const geos::geom::Coordinate* coordinate1 = address1.coordinate.data()->getCoordinate();
+            if (!(coordinate1->x <= maxLon && coordinate1->x >= minLon
+                    && coordinate1->y >= maxLat && coordinate1->y <= minLat)) {
+                continue;
+            }
+
+            for (int j = i + 1; j < newAddresses.size(); j++) {
+                Address address2 = newAddresses.at(j);
+                const geos::geom::Coordinate* coordinate2 = address2.coordinate.data()->getCoordinate();
+                if (!(coordinate2->x <= maxLon && coordinate2->x >= minLon
+                        && coordinate2->y >= maxLat && coordinate2->y <= minLat)) {
+                    continue;
+                }
+
+                double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * 111000;
+
+                if (distance < 4) {
+                    if (widget.checkBox_4->isChecked()) {
+                        widget.textBrowser->append(tr("Too close to another address: %1 %2")
+                                .arg(address2.houseNumber).arg(address2.street.name));
+                    }
+                    newAddresses.removeOne(address2);
+                    excludedAddresses.append(address2);
+                    j--;
+                }
+            }
+        }
+    }
+}
+
 
 void MainForm::outputChangeFile() {
     if (widget.lineEdit_2->text().isEmpty()) {
