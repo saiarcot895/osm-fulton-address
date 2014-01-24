@@ -24,6 +24,8 @@ public:
     virtual ~MainForm();
 public slots:
     void setAddressFile();
+    void setZipCodeFile();
+    void setBuildingFile();
     void setOutputFile();
     void convert();
     void downloadOSM();
@@ -44,6 +46,7 @@ private:
         Relation
     };
 
+    QString openFile();
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();

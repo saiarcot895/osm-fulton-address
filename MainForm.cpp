@@ -28,14 +28,34 @@ MainForm::MainForm() {
     connect(widget.pushButton, SIGNAL(clicked()), this, SLOT(setAddressFile()));
     connect(widget.pushButton_2, SIGNAL(clicked()), this, SLOT(convert()));
     connect(widget.pushButton_3, SIGNAL(clicked()), this, SLOT(setOutputFile()));
+    connect(widget.pushButton_4, SIGNAL(clicked()), this, SLOT(setZipCodeFile()));
+    connect(widget.pushButton_5, SIGNAL(clicked()), this, SLOT(setBuildingFile()));
     connect(nam, SIGNAL(finished(QNetworkReply*)), this, SLOT(readOSM(QNetworkReply*)));
 }
 
-void MainForm::setAddressFile() {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), "",
+QString MainForm::openFile() {
+    return QFileDialog::getOpenFileName(this, tr("Open File"), "",
             tr("OSM File (*.osm);;XML File (*.xml)"));
-    if (fileName.length() != 0) {
+}
+
+void MainForm::setAddressFile() {
+    QString fileName = openFile();
+    if (!openFile().isEmpty()) {
         widget.lineEdit->setText(fileName);
+    }
+}
+
+void MainForm::setZipCodeFile() {
+    QString fileName = openFile();
+    if (!openFile().isEmpty()) {
+        widget.lineEdit_3->setText(fileName);
+    }
+}
+
+void MainForm::setBuildingFile() {
+    QString fileName = openFile();
+    if (!openFile().isEmpty()) {
+        widget.lineEdit_4->setText(fileName);
     }
 }
 
