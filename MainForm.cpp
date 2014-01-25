@@ -223,17 +223,18 @@ void MainForm::readZipCodeFile() {
                 } else if (reader.name().toString() == "member") {
                     if (reader.attributes().value("role").toString() == "outer") {
                         geos::geom::CoordinateSequence* sequence = zipCodeWays
-                                .value(reader.attributes().value("ref").toString().toInt());
+                                .value(reader.attributes().value("ref").toString().toInt())
+                                ->getCoordinates();
                         if (baseSequence == NULL) {
                             baseSequence = sequence;
                         } else {
-                            baseSequence->add(sequence);
+                            baseSequence->add(sequence, true, true);
                         }
                     }
 
                 } else if (reader.name().toString() == "nd") {
-                    coordinates.append(zipCodeNodes.value(reader.attributes()
-                        .value("k").toString().toInt()));
+                    coordinates.append(*zipCodeNodes.value(reader.attributes()
+                            .value("k").toString().toInt())->getCoordinate());
                 } else if (reader.name().toString() == "tag") {
                     if (reader.attributes().value("k") == "addr:postcode") {
                         polygon = true;
@@ -243,12 +244,18 @@ void MainForm::readZipCodeFile() {
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "way") {
+
                     geos::geom::CoordinateSequence* sequence = factory
                                 ->getCoordinateSequenceFactory()->create(
-                                coordinates.toVector().toStdVector());
+                                coordinates.size(), 0);
+                    for (int i = 0; i < coordinates.size(); i++) {
+                        sequence->add(coordinates.at(i));
+                    }
                     if (polygon) {
                         geos::geom::LinearRing* ring = factory->createLinearRing(sequence);
-                        zipCodes.insert(zipCode, factory->createPolygon(ring));
+                        std::vector<geos::geom::Geometry*> empty = QVector<geos::geom::Geometry*>().toStdVector();
+                        zipCodes.insert(zipCode, factory->createPolygon(ring,
+                                &empty));
                         zipCode = 0;
                         polygon = false;
                     }
@@ -272,6 +279,90 @@ void MainForm::readZipCodeFile() {
         delete zipCodeWaysPoints.at(i);
     }
     zipCodeWays.clear();
+
+    readAddressFile();
+}
+
+void MainForm::readBuildingFile() {
+    QFile file(widget.lineEdit_4->text());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCritical() << "Error: Couldn't open " << widget.lineEdit_4->text();
+        cleanup();
+        return;
+    }
+
+    QXmlStreamReader reader(&file);
+    Building* building = NULL;
+    QList<geos::geom::Coordinate> buildingCoordinates;
+    bool skip = false;
+    while (!reader.atEnd()) {
+        switch (reader.readNext()) {
+            case QXmlStreamReader::StartElement:
+                if (reader.name().toString() == "node") {
+                    geos::geom::Coordinate coordinate;
+                    coordinate.y = reader.attributes().value("lat").toString().toDouble();
+                    coordinate.x = reader.attributes().value("lon").toString().toDouble();
+                    int nodes = reader.attributes().value("id").toString().toInt();
+                    buildingNodes.insert(nodes, factory->createPoint(coordinate));
+                } else if (reader.name().toString() == "way") {
+                    building = new Building();
+                } else if (reader.name().toString() == "nd") {
+                    if (building != NULL) {
+                        buildingCoordinates.append(*buildingNodes.value(reader
+                            .attributes().value("ref").toString().toInt())->getCoordinate());
+                    }
+                } else if (reader.name().toString() == "tag" && !skip) {
+                    if (reader.attributes().value("k") == "addr:housenumber") {
+                        if (building != NULL) {
+                            building->setYear(reader.attributes().value("v").toString().toInt());
+                        }
+                    }
+                }
+                break;
+            case QXmlStreamReader::EndElement:
+                if (reader.name().toString() == "way" && building != NULL) {
+                    geos::geom::CoordinateSequence* sequence = factory->
+                            getCoordinateSequenceFactory()->create
+                            (buildingCoordinates.size(), 0);
+                    for (int i = 0; i < buildingCoordinates.size(); i++) {
+                        sequence->add(buildingCoordinates.at(i));
+
+                    }
+                    geos::geom::LinearRing* linearRing = factory->
+                            createLinearRing(sequence);
+                    std::vector<geos::geom::Geometry*> empty = QVector<geos
+                            ::geom::Geometry*>().toStdVector();
+                    building->setBuilding(QSharedPointer<geos::geom::Polygon>
+                        (factory->createPolygon(linearRing, &empty)));
+                    buildings.append(*building);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    validateBuildings();
+}
+
+void MainForm::validateBuildings() {
+    for (int i = 0; i < buildings.size(); i++) {
+        geos::geom::Polygon* building1 = buildings.at(i).getBuilding().data();
+        for (int j = i + 1; j < buildings.size() && building1 != NULL; j++) {
+            geos::geom::Polygon* building2 = buildings.at(j).getBuilding().data();
+
+            if (building1->crosses(building2)) {
+                if (buildings.at(i).getYear() >= buildings.at(j).getYear()) {
+                    buildings.removeAt(j);
+                    j--;
+                } else {
+                    buildings.removeAt(i);
+                    i--;
+                    building1 = NULL;
+                }
+            }
+        }
+    }
 
     readAddressFile();
 }
@@ -601,6 +692,12 @@ void MainForm::cleanup() {
         delete point;
     }
     nodes.clear();
+    QList<geos::geom::Point*> buildingPointValues = buildingNodes.values();
+    for (int i = 0; i < buildingPointValues.size(); i++) {
+        geos::geom::Point* point = buildingPointValues.at(i);
+        delete point;
+    }
+    buildingNodes.clear();
     QList<Street*> streetValues = streets.values();
     for (int i = 0; i < streetValues.size(); i++) {
         Street* street = streetValues.at(i);

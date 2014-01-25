@@ -11,6 +11,7 @@
 #include "ui_MainForm.h"
 #include "Street.h"
 #include "Address.h"
+#include "Building.h"
 #include <geos/geom/GeometryFactory.h>
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
@@ -34,8 +35,10 @@ private:
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<uint, geos::geom::Point*> nodes;
+    QHash<int, geos::geom::Point*> buildingNodes;
     QHash<int, geos::geom::Polygon*> zipCodes;
     QHash<QString, Street*> streets;
+    QList<Building> buildings;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
     QList<Address> excludedAddresses;
@@ -49,6 +52,8 @@ private:
 
     QString openFile();
     void readZipCodeFile();
+    void readBuildingFile();
+    void validateBuildings();
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();
