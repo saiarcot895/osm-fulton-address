@@ -34,6 +34,7 @@ private:
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<uint, geos::geom::Point*> nodes;
+    QHash<int, geos::geom::Polygon*> zipCodes;
     QHash<QString, Street*> streets;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
@@ -47,6 +48,7 @@ private:
     };
 
     QString openFile();
+    void readZipCodeFile();
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();

@@ -187,6 +187,95 @@ void MainForm::readOSM(QNetworkReply* reply) {
     }
 }
 
+void MainForm::readZipCodeFile() {
+    if (widget.lineEdit_3->text().isEmpty()) {
+        readAddressFile();
+        return;
+    }
+
+    QHash<int, geos::geom::Point*> zipCodeNodes;
+    QHash<int, geos::geom::LineString*> zipCodeWays;
+
+    QFile file(widget.lineEdit_3->text());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCritical() << "Error: Couldn't open " << widget.lineEdit_3->text();
+        readAddressFile();
+        return;
+    }
+
+    QXmlStreamReader reader(&file);
+    int wayId;
+    int zipCode;
+    bool polygon = false;
+    geos::geom::CoordinateSequence* baseSequence = NULL;
+    QList<geos::geom::Coordinate> coordinates;
+    while (!reader.atEnd()) {
+        switch (reader.readNext()) {
+            case QXmlStreamReader::StartElement:
+                if (reader.name().toString() == "node") {
+                    geos::geom::Coordinate coordinate;
+                    coordinate.y = reader.attributes().value("lat").toString().toDouble();
+                    coordinate.x = reader.attributes().value("lon").toString().toDouble();
+                    int nodeId = reader.attributes().value("id").toString().toInt();
+                    zipCodeNodes.insert(nodeId, factory->createPoint(coordinate));
+                } else if (reader.name().toString() == "way") {
+                    wayId = reader.attributes().value("id").toString().toInt();
+                } else if (reader.name().toString() == "member") {
+                    if (reader.attributes().value("role").toString() == "outer") {
+                        geos::geom::CoordinateSequence* sequence = zipCodeWays
+                                .value(reader.attributes().value("ref").toString().toInt());
+                        if (baseSequence == NULL) {
+                            baseSequence = sequence;
+                        } else {
+                            baseSequence->add(sequence);
+                        }
+                    }
+
+                } else if (reader.name().toString() == "nd") {
+                    coordinates.append(zipCodeNodes.value(reader.attributes()
+                        .value("k").toString().toInt()));
+                } else if (reader.name().toString() == "tag") {
+                    if (reader.attributes().value("k") == "addr:postcode") {
+                        polygon = true;
+                        zipCode = reader.attributes().value("v").toString().toInt();
+                    }
+                }
+                break;
+            case QXmlStreamReader::EndElement:
+                if (reader.name().toString() == "way") {
+                    geos::geom::CoordinateSequence* sequence = factory
+                                ->getCoordinateSequenceFactory()->create(
+                                coordinates.toVector().toStdVector());
+                    if (polygon) {
+                        geos::geom::LinearRing* ring = factory->createLinearRing(sequence);
+                        zipCodes.insert(zipCode, factory->createPolygon(ring));
+                        zipCode = 0;
+                        polygon = false;
+                    }
+                    zipCodeWays.insert(wayId, factory->createLineString(sequence));
+                    coordinates.clear();
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    QList<geos::geom::Point*> zipCodeNodesPoints = zipCodeNodes.values();
+    for (int i = 0; i < zipCodeNodesPoints.size(); i++) {
+        delete zipCodeNodesPoints.at(i);
+    }
+    zipCodeNodes.clear();
+
+    QList<geos::geom::LineString*> zipCodeWaysPoints = zipCodeWays.values();
+    for (int i = 0; i < zipCodeWaysPoints.size(); i++) {
+        delete zipCodeWaysPoints.at(i);
+    }
+    zipCodeWays.clear();
+
+    readAddressFile();
+}
+
 void MainForm::readAddressFile() {
     QFile file(widget.lineEdit->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -378,7 +467,6 @@ void MainForm::validateBetweenAddresses() {
         }
     }
 }
-
 
 void MainForm::outputChangeFile() {
     if (widget.lineEdit_2->text().isEmpty()) {
