@@ -13,6 +13,7 @@
 #include "Address.h"
 #include <geos/geom/PrecisionModel.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
+#include <geos/geom/CoordinateArraySequenceFactory.h>
 
 MainForm::MainForm() {
     widget.setupUi(this);
@@ -298,7 +299,7 @@ void MainForm::readBuildingFile() {
     QXmlStreamReader reader(&file);
     Building* building = NULL;
     QList<geos::geom::Coordinate> buildingCoordinates;
-    bool skip = false;
+    bool skip = true;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
             case QXmlStreamReader::StartElement:
@@ -315,30 +316,34 @@ void MainForm::readBuildingFile() {
                         buildingCoordinates.append(*buildingNodes.value(reader
                             .attributes().value("ref").toString().toInt())->getCoordinate());
                     }
-                } else if (reader.name().toString() == "tag" && !skip) {
-                    if (reader.attributes().value("k") == "addr:housenumber") {
+                } else if (reader.name().toString() == "tag") {
+                    if (reader.attributes().value("k") == "YearBuilt") {
                         if (building != NULL) {
                             building->setYear(reader.attributes().value("v").toString().toInt());
+                            skip = false;
                         }
                     }
                 }
                 break;
             case QXmlStreamReader::EndElement:
-                if (reader.name().toString() == "way" && building != NULL) {
-                    geos::geom::CoordinateSequence* sequence = factory->
+                if (reader.name().toString() == "way") {
+                    if (building != NULL && !skip) {
+                        std::vector<geos::geom::Coordinate> vector =
+                                buildingCoordinates.toVector().toStdVector();
+                        geos::geom::CoordinateSequence* sequence = factory->
                             getCoordinateSequenceFactory()->create
-                            (buildingCoordinates.size(), 0);
-                    for (int i = 0; i < buildingCoordinates.size(); i++) {
-                        sequence->add(buildingCoordinates.at(i));
-
+                            (&vector, 0);
+                        geos::geom::LinearRing* linearRing = factory->
+                                createLinearRing(sequence);
+                        std::vector<geos::geom::Geometry*> empty = QVector<geos
+                                ::geom::Geometry*>().toStdVector();
+                        building->setBuilding(QSharedPointer<geos::geom::Polygon>
+                            (factory->createPolygon(linearRing, &empty)));
+                        buildings.append(*building);
                     }
-                    geos::geom::LinearRing* linearRing = factory->
-                            createLinearRing(sequence);
-                    std::vector<geos::geom::Geometry*> empty = QVector<geos
-                            ::geom::Geometry*>().toStdVector();
-                    building->setBuilding(QSharedPointer<geos::geom::Polygon>
-                        (factory->createPolygon(linearRing, &empty)));
-                    buildings.append(*building);
+                    building = NULL;
+                    skip = true;
+                    buildingCoordinates.clear();
                 }
                 break;
             default:
