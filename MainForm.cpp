@@ -40,21 +40,21 @@ QString MainForm::openFile() {
 
 void MainForm::setAddressFile() {
     QString fileName = openFile();
-    if (!openFile().isEmpty()) {
+    if (!fileName.isEmpty()) {
         widget.lineEdit->setText(fileName);
     }
 }
 
 void MainForm::setZipCodeFile() {
     QString fileName = openFile();
-    if (!openFile().isEmpty()) {
+    if (!fileName.isEmpty()) {
         widget.lineEdit_3->setText(fileName);
     }
 }
 
 void MainForm::setBuildingFile() {
     QString fileName = openFile();
-    if (!openFile().isEmpty()) {
+    if (!fileName.isEmpty()) {
         widget.lineEdit_4->setText(fileName);
     }
 }
@@ -179,7 +179,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                 widget.textBrowser->append(address.houseNumber + " " + address.street.name);
             }
         }
-        readAddressFile();
+        readZipCodeFile();
     } else {
         widget.textBrowser->insertPlainText(reply->errorString());
         qCritical() << reply->errorString();
@@ -189,9 +189,13 @@ void MainForm::readOSM(QNetworkReply* reply) {
 
 void MainForm::readZipCodeFile() {
     if (widget.lineEdit_3->text().isEmpty()) {
-        readAddressFile();
+        readBuildingFile();
         return;
     }
+
+    // Bypass reading the zip-code file for now.
+    readBuildingFile();
+    return;
 
     QHash<int, geos::geom::Point*> zipCodeNodes;
     QHash<int, geos::geom::LineString*> zipCodeWays;
@@ -199,7 +203,7 @@ void MainForm::readZipCodeFile() {
     QFile file(widget.lineEdit_3->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCritical() << "Error: Couldn't open " << widget.lineEdit_3->text();
-        readAddressFile();
+        readBuildingFile();
         return;
     }
 
@@ -280,7 +284,7 @@ void MainForm::readZipCodeFile() {
     }
     zipCodeWays.clear();
 
-    readAddressFile();
+    readBuildingFile();
 }
 
 void MainForm::readBuildingFile() {
