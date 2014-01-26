@@ -8,8 +8,10 @@
 #ifndef ADDRESS_H
 #define	ADDRESS_H
 
-#include "Coordinate.h"
+#include "Street.h"
+#include <geos/geom/Point.h>
 #include "QString"
+#include "QSharedPointer"
 
 class Address {
 public:
@@ -20,13 +22,15 @@ public:
     };
 
     QString houseNumber;
-    QString street;
-    Coordinate coordinate;
+    Street street;
+    QString city;
+    int zipCode;
+    QSharedPointer<geos::geom::Point> coordinate;
     AddressType addressType;
     bool allowStructural;
 
     Address();
-    bool operator==(Address address) const;
+    bool operator==(const Address& address) const;
 };
 
 #endif	/* ADDRESS_H */
