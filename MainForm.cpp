@@ -354,18 +354,18 @@ void MainForm::readBuildingFile() {
 
 void MainForm::validateBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
-        geos::geom::Polygon* building1 = buildings.at(i).getBuilding().data();
-        for (int j = i + 1; j < buildings.size() && building1 != NULL; j++) {
-            geos::geom::Polygon* building2 = buildings.at(j).getBuilding().data();
+        Building building1 = buildings.at(i);
+        for (int j = i + 1; j < buildings.size(); j++) {
+            Building building2 = buildings.at(j);
 
-            if (building1->crosses(building2)) {
-                if (buildings.at(i).getYear() >= buildings.at(j).getYear()) {
+            if (building1.getBuilding().data()->intersects(building2.getBuilding().data())) {
+                if (building1.getYear() >= building2.getYear()) {
                     buildings.removeAt(j);
                     j--;
                 } else {
                     buildings.removeAt(i);
                     i--;
-                    building1 = NULL;
+                    break;
                 }
             }
         }
