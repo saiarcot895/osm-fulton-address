@@ -298,7 +298,7 @@ void MainForm::readBuildingFile() {
 
     QXmlStreamReader reader(&file);
     Building* building = NULL;
-    QList<geos::geom::Coordinate> buildingCoordinates;
+    geos::geom::CoordinateSequence* sequence;
     bool skip = true;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
@@ -311,28 +311,26 @@ void MainForm::readBuildingFile() {
                     buildingNodes.insert(nodes, factory->createPoint(coordinate));
                 } else if (reader.name().toString() == "way") {
                     building = new Building();
+                    sequence = factory->getCoordinateSequenceFactory()->create
+                            ((std::size_t) 0, 2);
                 } else if (reader.name().toString() == "nd") {
                     if (building != NULL) {
-                        buildingCoordinates.append(*buildingNodes.value(reader
-                            .attributes().value("ref").toString().toInt())->getCoordinate());
+                        sequence->add(buildingNodes.value(reader.attributes()
+                            .value("ref").toString().toInt())->getCoordinates(),
+                                true, true);
                     }
-                } else if (reader.name().toString() == "tag") {
-                    if (reader.attributes().value("k") == "YearBuilt") {
-                        if (building != NULL) {
-                            building->setYear(reader.attributes().value("v").toString().toInt());
-                            skip = false;
-                        }
+                } else if (reader.name().toString() == "tag" && building != NULL) {
+                    if (reader.attributes().value("k") == "FeatureID") {
+                        building->setFeatureID(reader.attributes().value("v").toString());
+                        skip = false;
+                    } else if (reader.attributes().value("k") == "YearBuilt") {
+                        building->setYear(reader.attributes().value("v").toString().toInt());
                     }
                 }
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "way") {
                     if (building != NULL && !skip) {
-                        std::vector<geos::geom::Coordinate> vector =
-                                buildingCoordinates.toVector().toStdVector();
-                        geos::geom::CoordinateSequence* sequence = factory->
-                            getCoordinateSequenceFactory()->create
-                            (&vector, 0);
                         geos::geom::LinearRing* linearRing = factory->
                                 createLinearRing(sequence);
                         std::vector<geos::geom::Geometry*> empty = QVector<geos
@@ -342,8 +340,8 @@ void MainForm::readBuildingFile() {
                         buildings.append(*building);
                     }
                     building = NULL;
+                    sequence = NULL;
                     skip = true;
-                    buildingCoordinates.clear();
                 }
                 break;
             default:

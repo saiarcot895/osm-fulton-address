@@ -17,14 +17,17 @@ public:
     Building(const Building& orig);
 
     int getYear() const;
+    QString getFeatureID() const;
     QSharedPointer<geos::geom::Polygon> getBuilding() const;
 
     void setYear(int year);
+    void setFeatureID(QString featureID);
     void setBuilding(QSharedPointer<geos::geom::Polygon> building);
 
     virtual ~Building();
 private:
     int year;
+    QString featureID;
     QSharedPointer<geos::geom::Polygon> building;
 };
 

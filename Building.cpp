@@ -20,12 +20,20 @@ int Building::getYear() const {
     return year;
 }
 
+QString Building::getFeatureID() const {
+    return featureID;
+}
+
 QSharedPointer<geos::geom::Polygon> Building::getBuilding() const {
     return building;
 }
 
 void Building::setYear(int year) {
     this->year = year;
+}
+
+void Building::setFeatureID(QString featureID) {
+    this->featureID = featureID;
 }
 
 void Building::setBuilding(QSharedPointer<geos::geom::Polygon> building) {
