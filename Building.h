@@ -31,5 +31,9 @@ private:
     QSharedPointer<geos::geom::Polygon> building;
 };
 
+uint qHash(const Building& key);
+
+bool operator==(const Building& building1, const Building& building2);
+
 #endif	/* BUILDING_H */
 

@@ -1,11 +1,18 @@
 #include "Address.h"
 #include "Street.h"
+#include "QHash"
 
 Address::Address() {
     addressType = Other;
     allowStructural = true;
 }
 
-bool Address::operator==(const Address& address) const {
-    return houseNumber == address.houseNumber && street.name == address.street.name;
+uint qHash(const Address& key) {
+    return qHash(key.houseNumber) ^ qHash(key.street.name);
+}
+
+
+bool operator==(const Address& address1, const Address& address2) {
+    return address1.houseNumber == address2.houseNumber
+            && address2.street.name == address2.street.name;
 }

@@ -12,6 +12,7 @@
 #include <geos/geom/Point.h>
 #include "QString"
 #include "QSharedPointer"
+#include "Building.h"
 
 class Address {
 public:
@@ -30,8 +31,11 @@ public:
     bool allowStructural;
 
     Address();
-    bool operator==(const Address& address) const;
 };
+
+uint qHash(const Address& key);
+
+bool operator==(const Address& address1, const Address& address2);
 
 #endif	/* ADDRESS_H */
 

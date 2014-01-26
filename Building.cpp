@@ -6,6 +6,7 @@
  */
 
 #include "Building.h"
+#include "QHash"
 
 Building::Building() {
     year = 0;
@@ -38,6 +39,16 @@ void Building::setFeatureID(QString featureID) {
 
 void Building::setBuilding(QSharedPointer<geos::geom::Polygon> building) {
     this->building = building;
+}
+
+uint qHash(const Building& key) {
+    return qHash(key.getFeatureID()) ^ qHash(key.getYear());
+}
+
+bool operator==(const Building& building1, const Building& building2) {
+    return building1.getFeatureID() == building2.getFeatureID()
+            && building1.getYear() == building2.getYear()
+            && building1.getBuilding() == building2.getBuilding();
 }
 
 Building::~Building() {
