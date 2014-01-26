@@ -315,9 +315,8 @@ void MainForm::readBuildingFile() {
                             ((std::vector<geos::geom::Coordinate>*) NULL, 2);
                 } else if (reader.name().toString() == "nd") {
                     if (building != NULL) {
-                        sequence->add(buildingNodes.value(reader.attributes()
-                            .value("ref").toString().toInt())->getCoordinates(),
-                                true, true);
+                        sequence->add(*buildingNodes.value(reader.attributes()
+                            .value("ref").toString().toInt())->getCoordinate());
                     }
                 } else if (reader.name().toString() == "tag" && building != NULL) {
                     if (reader.attributes().value("k") == "FeatureID") {
