@@ -486,7 +486,7 @@ void MainForm::readAddressFile() {
     }
     if (widget.checkBox_3->isChecked()) {
         widget.textBrowser->append("");
-        widget.textBrowser->append("New Addresses (before vvalidation):");
+        widget.textBrowser->append("New Addresses (before validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
             widget.textBrowser->append(address.houseNumber + " " + address.street.name);
