@@ -599,6 +599,16 @@ void MainForm::mergeAddressBuilding() {
         }
     }
 
+    QList<Address> mergedAddresses = addressBuildings.keys();
+    for (int i = 0; i < mergedAddresses.size(); i++) {
+        newAddresses.removeOne(mergedAddresses.at(i));
+    }
+
+    QList<Building> mergedBuildings = addressBuildings.values();
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        buildings.removeOne(mergedBuildings.at(i));
+    }
+
     outputChangeFile();
 }
 
