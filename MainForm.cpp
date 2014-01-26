@@ -617,26 +617,10 @@ void MainForm::outputChangeFile() {
     if (widget.lineEdit_2->text().isEmpty()) {
         return;
     }
-    for (int i = 0; i <= newAddresses.size() / 5000; i++) {
-        QString fullFileName = widget.lineEdit_2->text();
-        if (i != 0) {
-            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
-                fullFileName = tr("%1_%2").arg(widget.lineEdit_2->text()).arg(i);
-            }
-            else {
-                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
-                        ->text().lastIndexOf("."));
-                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
-                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
-                fullFileName = tr("%1_%2.%3").arg(baseName).arg(i).arg(extension);
-            }
-        }
-        QFile file(fullFileName);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            continue;
-        }
-
-        writeXMLFile(file, newAddresses, i);
+    QString fullFileName = widget.lineEdit_2->text();
+    QFile file(fullFileName);
+    if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        writeXMLFile(file, &newAddresses, &buildings, &addressBuildings);
     }
 
     for (int i = 0; i <= excludedAddresses.size() / 5000; i++) {
@@ -669,7 +653,7 @@ void MainForm::outputChangeFile() {
             continue;
         }
 
-        writeXMLFile(file, excludedAddresses, i);
+        writeXMLFile(file, &excludedAddresses, NULL, NULL);
     }
 
     // Output the log to a file
@@ -685,44 +669,154 @@ void MainForm::outputChangeFile() {
     cleanup();
 }
 
-void MainForm::writeXMLFile(QFile& file, QList<Address>& addresses, int i) {
+void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
+        QList<Building>* buildings, QHash<Address, Building>* addressBuildings) {
     QXmlStreamWriter writer(&file);
     writer.setAutoFormatting(true);
     outputStartOfFile(writer);
-    for (int j = i * 5000; j < addresses.size() && j < (i + 1) * 5000; j++) {
-        Address address = addresses.at(j);
+    uint id = 1;
 
-        writer.writeStartElement("node");
-        writer.writeAttribute("id", tr("-%1").arg(j + 1));
-        writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
-        writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
+    if (addresses != NULL) {
+        for (int i = 0; i < addresses->size(); i++) {
+            Address address = addresses->at(i);
 
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "addr:housenumber");
-        writer.writeAttribute("v", address.houseNumber);
-        writer.writeEndElement();
+            writer.writeStartElement("node");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            id++;
+            writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
+            writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
 
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "addr:street");
-        writer.writeAttribute("v", address.street.name);
-        writer.writeEndElement();
-
-        if (!address.city.isEmpty()) {
             writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:city");
-            writer.writeAttribute("v", address.city);
+            writer.writeAttribute("k", "addr:housenumber");
+            writer.writeAttribute("v", address.houseNumber);
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:street");
+            writer.writeAttribute("v", address.street.name);
+            writer.writeEndElement();
+
+            if (!address.city.isEmpty()) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:city");
+                writer.writeAttribute("v", address.city);
+                writer.writeEndElement();
+            }
+
+            if (address.zipCode != 0) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:postcode");
+                writer.writeAttribute("v", QString::number(address.zipCode));
+                writer.writeEndElement();
+            }
+
             writer.writeEndElement();
         }
-
-        if (address.zipCode != 0) {
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:postcode");
-            writer.writeAttribute("v", QString::number(address.zipCode));
-            writer.writeEndElement();
-        }
-
-        writer.writeEndElement();
     }
+
+    if (buildings != NULL) {
+        for (int i = 0; i < buildings->size(); i++) {
+            Building building = buildings->at(i);
+
+            geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+                    .data()->getCoordinates();
+            for (int j = 0; j < coordinates->size() - 1; j++) {
+                geos::geom::Coordinate coordinate = coordinates->getAt(j);
+                writer.writeStartElement("node");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                id++;
+                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("way");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            id++;
+
+            for (int j = coordinates->size() - 1; j >= 1; j--) {
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+                writer.writeEndElement();
+            }
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "building");
+            writer.writeAttribute("v", "yes");
+            writer.writeEndElement();
+
+            writer.writeEndElement();
+        }
+    }
+
+    if (addressBuildings != NULL) {
+        QList<Address> mergedAddresses = addressBuildings->keys();
+        QList<Building> mergedBuildings = addressBuildings->values();
+        for (int i = 0; i < mergedBuildings.size(); i++) {
+            Address address = mergedAddresses.at(i);
+            Building building = mergedBuildings.at(i);
+
+            geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+                    .data()->getCoordinates();
+            for (int j = 0; j < coordinates->size() - 1; j++) {
+                geos::geom::Coordinate coordinate = coordinates->getAt(j);
+                writer.writeStartElement("node");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                id++;
+                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("way");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            id++;
+
+            for (int j = coordinates->size() - 1; j >= 1; j--) {
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+                writer.writeEndElement();
+            }
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "building");
+            writer.writeAttribute("v", "yes");
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:housenumber");
+            writer.writeAttribute("v", address.houseNumber);
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:street");
+            writer.writeAttribute("v", address.street.name);
+            writer.writeEndElement();
+
+            if (!address.city.isEmpty()) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:city");
+                writer.writeAttribute("v", address.city);
+                writer.writeEndElement();
+            }
+
+            if (address.zipCode != 0) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:postcode");
+                writer.writeAttribute("v", QString::number(address.zipCode));
+                writer.writeEndElement();
+            }
+
+            writer.writeEndElement();
+        }
+    }
+
     outputEndOfFile(writer);
 }
 

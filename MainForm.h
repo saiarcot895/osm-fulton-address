@@ -60,7 +60,10 @@ private:
     void validateBetweenAddresses();
     void mergeAddressBuilding();
     void outputChangeFile();
-    void writeXMLFile(QFile& file, QList<Address>& address, int i);
+    void writeXMLFile(QFile& file,
+            QList<Address>* address,
+            QList<Building>* buildings,
+            QHash<Address, Building>* addressBuildings);
     void outputStartOfFile(QXmlStreamWriter& writer);
     void outputEndOfFile(QXmlStreamWriter& writer);
     void cleanup();
