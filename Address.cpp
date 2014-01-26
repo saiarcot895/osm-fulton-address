@@ -14,5 +14,5 @@ uint qHash(const Address& key) {
 
 bool operator==(const Address& address1, const Address& address2) {
     return address1.houseNumber == address2.houseNumber
-            && address2.street.name == address2.street.name;
+            && address1.street.name == address2.street.name;
 }
