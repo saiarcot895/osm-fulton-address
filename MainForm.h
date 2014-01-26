@@ -42,6 +42,7 @@ private:
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
     QList<Address> excludedAddresses;
+    QHash<Address, Building> addressBuildings;
     enum FeatureType {
         None = 0,
         Node,
@@ -57,6 +58,7 @@ private:
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();
+    void mergeAddressBuilding();
     void outputChangeFile();
     void writeXMLFile(QFile& file, QList<Address>& address, int i);
     void outputStartOfFile(QXmlStreamWriter& writer);

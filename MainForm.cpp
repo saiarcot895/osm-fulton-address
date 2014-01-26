@@ -533,7 +533,7 @@ void MainForm::validateAddresses() {
         }
     }
 
-    outputChangeFile();
+    mergeAddressBuilding();
 }
 
 void MainForm::validateBetweenAddresses() {
@@ -577,6 +577,29 @@ void MainForm::validateBetweenAddresses() {
             }
         }
     }
+}
+
+void MainForm::mergeAddressBuilding() {
+    for (int i = 0; i < buildings.size(); i++) {
+        Building building = buildings.at(i);
+        bool addressSet = false;
+
+        for (int j = 0; j < newAddresses.size(); j++) {
+            Address address = newAddresses.at(j);
+
+            if (building.getBuilding().data()->contains(address.coordinate.data())) {
+                if (!addressSet) {
+                    addressBuildings.insertMulti(address, building);
+                    addressSet = true;
+                } else {
+                    addressBuildings.remove(addressBuildings.key(building));
+                    break;
+                }
+            }
+        }
+    }
+
+    outputChangeFile();
 }
 
 void MainForm::outputChangeFile() {
