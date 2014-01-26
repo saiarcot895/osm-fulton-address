@@ -158,7 +158,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
         for (int i = 0; i < streetValues.size(); i++) {
             Street* street = streetValues.at(i);
             geos::geom::CoordinateSequence* nodePoints = factory
-                    ->getCoordinateSequenceFactory()->create(street->nodeIndices.size(), 0);
+                    ->getCoordinateSequenceFactory()->create(
+                    (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < street->nodeIndices.size(); j++) {
                 nodePoints->add(*(nodes.value(street->nodeIndices.at(j))->getCoordinate()));
             }
@@ -252,7 +253,7 @@ void MainForm::readZipCodeFile() {
 
                     geos::geom::CoordinateSequence* sequence = factory
                                 ->getCoordinateSequenceFactory()->create(
-                                coordinates.size(), 0);
+                                (std::vector<geos::geom::Coordinate>*) NULL, 2);
                     for (int i = 0; i < coordinates.size(); i++) {
                         sequence->add(coordinates.at(i));
                     }
