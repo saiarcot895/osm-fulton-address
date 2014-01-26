@@ -312,7 +312,7 @@ void MainForm::readBuildingFile() {
                 } else if (reader.name().toString() == "way") {
                     building = new Building();
                     sequence = factory->getCoordinateSequenceFactory()->create
-                            ((std::size_t) 0, 2);
+                            ((std::vector<geos::geom::Coordinate>*) NULL, 2);
                 } else if (reader.name().toString() == "nd") {
                     if (building != NULL) {
                         sequence->add(buildingNodes.value(reader.attributes()
@@ -333,10 +333,8 @@ void MainForm::readBuildingFile() {
                     if (building != NULL && !skip) {
                         geos::geom::LinearRing* linearRing = factory->
                                 createLinearRing(sequence);
-                        std::vector<geos::geom::Geometry*> empty = QVector<geos
-                                ::geom::Geometry*>().toStdVector();
                         building->setBuilding(QSharedPointer<geos::geom::Polygon>
-                            (factory->createPolygon(linearRing, &empty)));
+                            (factory->createPolygon(linearRing, NULL)));
                         buildings.append(*building);
                     }
                     building = NULL;
