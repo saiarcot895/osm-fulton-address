@@ -296,10 +296,16 @@ void MainForm::readBuildingFile() {
         return;
     }
 
+    double minLon = widget.doubleSpinBox_2->value();
+    double minLat = widget.doubleSpinBox->value();
+    double maxLon = widget.doubleSpinBox_4->value();
+    double maxLat = widget.doubleSpinBox_3->value();
+
     QXmlStreamReader reader(&file);
     Building* building = NULL;
     geos::geom::CoordinateSequence* sequence;
-    bool skip = true;
+    bool skip1 = true;
+    bool skip2 = true;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
             case QXmlStreamReader::StartElement:
@@ -315,13 +321,19 @@ void MainForm::readBuildingFile() {
                             ((std::vector<geos::geom::Coordinate>*) NULL, 2);
                 } else if (reader.name().toString() == "nd") {
                     if (building != NULL) {
-                        sequence->add(*buildingNodes.value(reader.attributes()
-                            .value("ref").toString().toInt())->getCoordinate());
+                        const geos::geom::Coordinate* coordinate = buildingNodes
+                            .value(reader.attributes().value("ref")
+                            .toString().toInt())->getCoordinate();
+                        if (coordinate->x <= maxLon && coordinate->x >= minLon
+                                && coordinate->y >= maxLat && coordinate->y <= minLat) {
+                            skip2 = false;
+                        }
+                        sequence->add(*coordinate);
                     }
                 } else if (reader.name().toString() == "tag" && building != NULL) {
                     if (reader.attributes().value("k") == "FeatureID") {
                         building->setFeatureID(reader.attributes().value("v").toString());
-                        skip = false;
+                        skip1 = false;
                     } else if (reader.attributes().value("k") == "YearBuilt") {
                         building->setYear(reader.attributes().value("v").toString().toInt());
                     }
@@ -329,16 +341,20 @@ void MainForm::readBuildingFile() {
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "way") {
-                    if (building != NULL && !skip) {
+                    if (building != NULL && !skip1 && !skip2) {
                         geos::geom::LinearRing* linearRing = factory->
                                 createLinearRing(sequence);
                         building->setBuilding(QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(linearRing, NULL)));
                         buildings.append(*building);
+                    } else {
+                        delete building;
+                        delete sequence;
                     }
                     building = NULL;
                     sequence = NULL;
-                    skip = true;
+                    skip1 = true;
+                    skip2 = true;
                 }
                 break;
             default:
