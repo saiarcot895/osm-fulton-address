@@ -615,6 +615,7 @@ void MainForm::mergeAddressBuilding() {
 
 void MainForm::outputChangeFile() {
     if (widget.lineEdit_2->text().isEmpty()) {
+        cleanup();
         return;
     }
     QString fullFileName = widget.lineEdit_2->text();
@@ -854,6 +855,8 @@ void MainForm::cleanup() {
     streets.clear();
     existingAddresses.clear();
     newAddresses.clear();
+    excludedAddresses.clear();
+    addressBuildings.clear();
 
     widget.pushButton_2->setEnabled(true);
 }
