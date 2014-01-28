@@ -8,6 +8,8 @@
 #ifndef _MAINFORM_H
 #define	_MAINFORM_H
 
+#define DEGREES_TO_METERS 111000
+
 #include "ui_MainForm.h"
 #include "Street.h"
 #include "Address.h"
@@ -55,6 +57,7 @@ private:
     void readZipCodeFile();
     void readBuildingFile();
     void validateBuildings();
+    void simplifyBuildings();
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();

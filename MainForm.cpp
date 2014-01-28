@@ -10,7 +10,9 @@
 #include "QUrl"
 #include "QXmlStreamReader"
 #include "QDebug"
+#include "qmath.h"
 #include "Address.h"
+#include <geos/algorithm/Angle.h>
 #include <geos/geom/PrecisionModel.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/CoordinateArraySequenceFactory.h>
@@ -385,6 +387,51 @@ void MainForm::validateBuildings() {
         }
     }
 
+    simplifyBuildings();
+}
+
+void MainForm::simplifyBuildings() {
+    for (int i = 0; i < buildings.size(); i++) {
+        Building building = buildings.at(i);
+        geos::geom::Polygon* polygon = building.getBuilding().data();
+
+        if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 5) {
+            buildings.removeAt(i);
+            i--;
+            continue;
+        }
+
+        geos::geom::CoordinateSequence* coordinates = polygon->getCoordinates();
+
+        for (int i = 0; i < coordinates->size() - 1; i++) {
+            geos::geom::Coordinate current = coordinates->getAt(i);
+            geos::geom::Coordinate after = coordinates->getAt(i + 1);
+
+            if (current.distance(after) * DEGREES_TO_METERS < 0.1) {
+                if (i = coordinates->size() - 2) {
+                    coordinates->deleteAt(i);
+                } else {
+                    coordinates->deleteAt(i + 1);
+                }
+            }
+        }
+
+        for (int i = 1; i < coordinates->size() - 1; i++) {
+            geos::geom::Coordinate before = coordinates->getAt(i - 1);
+            geos::geom::Coordinate current = coordinates->getAt(i);
+            geos::geom::Coordinate after = coordinates->getAt(i + 1);
+
+            double headingDiff = geos::algorithm::Angle::toDegrees(
+                geos::algorithm::Angle::angleBetween(before,
+                    current, after));
+
+            if (qAbs(headingDiff - 180) < 10) {
+                coordinates->deleteAt(i);
+                i--;
+            }
+        }
+    }
+
     readAddressFile();
 }
 
@@ -503,7 +550,7 @@ void MainForm::validateAddresses() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
 
-        double distance = address.coordinate.data()->distance(address.street.path.data()) * 111000;
+        double distance = address.coordinate.data()->distance(address.street.path.data()) * DEGREES_TO_METERS;
 
         if (distance > 100) {
             if (widget.checkBox_5->isChecked()) {
