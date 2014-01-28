@@ -392,7 +392,7 @@ void MainForm::validateBuildings() {
 
 void MainForm::simplifyBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
-        Building building = buildings.at(i);
+        Building& building = buildings[i];
         geos::geom::Polygon* polygon = building.getBuilding().data();
 
         if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 5) {
@@ -401,35 +401,39 @@ void MainForm::simplifyBuildings() {
             continue;
         }
 
-        geos::geom::CoordinateSequence* coordinates = polygon->getCoordinates();
+        geos::geom::CoordinateSequence* coordinates = polygon->getExteriorRing()->getCoordinates();
 
-        for (int i = 0; i < coordinates->size() - 1; i++) {
-            geos::geom::Coordinate current = coordinates->getAt(i);
-            geos::geom::Coordinate after = coordinates->getAt(i + 1);
+        for (int j = 0; j < coordinates->size() - 1; j++) {
+            geos::geom::Coordinate current = coordinates->getAt(j);
+            geos::geom::Coordinate after = coordinates->getAt(j + 1);
 
-            if (current.distance(after) * DEGREES_TO_METERS < 0.1) {
-                if (i = coordinates->size() - 2) {
-                    coordinates->deleteAt(i);
+            if (current.distance(after) * DEGREES_TO_METERS < 0.05) {
+                if (j = coordinates->size() - 2) {
+                    coordinates->deleteAt(j);
                 } else {
-                    coordinates->deleteAt(i + 1);
+                    coordinates->deleteAt(j + 1);
                 }
             }
         }
 
-        for (int i = 1; i < coordinates->size() - 1; i++) {
-            geos::geom::Coordinate before = coordinates->getAt(i - 1);
-            geos::geom::Coordinate current = coordinates->getAt(i);
-            geos::geom::Coordinate after = coordinates->getAt(i + 1);
+        for (int j = 1; j < coordinates->size() - 1; j++) {
+            geos::geom::Coordinate before = coordinates->getAt(j - 1);
+            geos::geom::Coordinate current = coordinates->getAt(j);
+            geos::geom::Coordinate after = coordinates->getAt(j + 1);
 
             double headingDiff = geos::algorithm::Angle::toDegrees(
                 geos::algorithm::Angle::angleBetween(before,
                     current, after));
 
-            if (qAbs(headingDiff - 180) < 10) {
-                coordinates->deleteAt(i);
-                i--;
+            if (qAbs(headingDiff - 180) < 5) {
+                coordinates->deleteAt(j);
+                j--;
             }
         }
+
+        geos::geom::LinearRing* newLinearRing = factory->createLinearRing(coordinates);
+        geos::geom::Polygon* newPolygon = factory->createPolygon(newLinearRing, NULL);
+        building.setBuilding(QSharedPointer<geos::geom::Polygon>(newPolygon));
     }
 
     readAddressFile();
