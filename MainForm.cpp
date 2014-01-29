@@ -101,8 +101,8 @@ void MainForm::downloadOSM() {
 void MainForm::readOSM(QNetworkReply* reply) {
     if (reply->error() == QNetworkReply::NoError) {
         QXmlStreamReader reader(reply->readAll());
-        Street* street;
-        Address* address;
+        Street* street = NULL;
+        Address* address = NULL;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -123,6 +123,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         street = new Street();
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
+                            delete address;
                             address = new Address();
                             address->houseNumber = reader.attributes().value("v").toString();
                         } else if (reader.attributes().value("k") == "addr:street") {
@@ -131,6 +132,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             // and street name, skip it.
                             address->street.name = reader.attributes().value("v").toString();
                             existingAddresses.append(*address);
+                            address = NULL;
                         } else if (current == Way && reader.attributes().value("k") == "building") {
                             // No buildings...yet.
                             current = None;
@@ -403,7 +405,8 @@ void MainForm::simplifyBuildings() {
             continue;
         }
 
-        geos::geom::CoordinateSequence* coordinates = polygon->getExteriorRing()->getCoordinates();
+        geos::geom::CoordinateSequence* coordinates = polygon->getExteriorRing()
+                ->getCoordinates();
 
         for (int j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate current = coordinates->getAt(j);
@@ -774,8 +777,8 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
         for (int i = 0; i < buildings->size(); i++) {
             Building building = buildings->at(i);
 
-            geos::geom::CoordinateSequence* coordinates = building.getBuilding()
-                    .data()->getCoordinates();
+            const geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+                    .data()->getExteriorRing()->getCoordinatesRO();
             for (int j = 0; j < coordinates->size() - 1; j++) {
                 geos::geom::Coordinate coordinate = coordinates->getAt(j);
                 writer.writeStartElement("node");
@@ -815,8 +818,8 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             Address address = mergedAddresses.at(i);
             Building building = mergedBuildings.at(i);
 
-            geos::geom::CoordinateSequence* coordinates = building.getBuilding()
-                    .data()->getCoordinates();
+            const geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+                    .data()->getExteriorRing()->getCoordinatesRO();
             for (int j = 0; j < coordinates->size() - 1; j++) {
                 geos::geom::Coordinate coordinate = coordinates->getAt(j);
                 writer.writeStartElement("node");
