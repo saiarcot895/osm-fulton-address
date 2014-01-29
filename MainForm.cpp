@@ -16,6 +16,7 @@
 #include <geos/geom/PrecisionModel.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/CoordinateArraySequenceFactory.h>
+#include <geos/geom/prep/PreparedPolygon.h>
 
 MainForm::MainForm() {
     widget.setupUi(this);
@@ -371,10 +372,11 @@ void MainForm::readBuildingFile() {
 void MainForm::validateBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
         Building building1 = buildings.at(i);
+        geos::geom::prep::PreparedPolygon polygon(building1.getBuilding().data());
         for (int j = i + 1; j < buildings.size(); j++) {
             Building building2 = buildings.at(j);
 
-            if (building1.getBuilding().data()->intersects(building2.getBuilding().data())) {
+            if (polygon.intersects(building2.getBuilding().data())) {
                 if (building1.getYear() >= building2.getYear()) {
                     buildings.removeAt(j);
                     j--;
@@ -636,10 +638,12 @@ void MainForm::mergeAddressBuilding() {
         Building building = buildings.at(i);
         bool addressSet = false;
 
+        geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
+
         for (int j = 0; j < newAddresses.size(); j++) {
             Address address = newAddresses.at(j);
 
-            if (building.getBuilding().data()->contains(address.coordinate.data())) {
+            if (polygon.contains(address.coordinate.data())) {
                 if (!addressSet) {
                     addressBuildings.insertMulti(address, building);
                     addressSet = true;
