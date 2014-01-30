@@ -61,6 +61,7 @@ private:
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();
+    void checkZipCodes();
     void mergeAddressBuilding();
     void outputChangeFile();
     void writeXMLFile(QFile& file,

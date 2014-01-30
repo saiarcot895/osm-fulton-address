@@ -15,7 +15,6 @@
 #include <geos/algorithm/Angle.h>
 #include <geos/geom/PrecisionModel.h>
 #include <geos/geom/CoordinateSequenceFactory.h>
-#include <geos/geom/CoordinateArraySequenceFactory.h>
 #include <geos/geom/prep/PreparedPolygon.h>
 #include <geos/util.h>
 #include <geos/geom/LinearRing.h>
@@ -657,6 +656,19 @@ void MainForm::validateBetweenAddresses() {
                     j--;
                 }
             }
+        }
+    }
+}
+
+void MainForm::checkZipCodes() {
+    QList<Address> addressesToCheck(existingAddresses);
+
+    for (int i = 0; i < existingAddresses.size(); i++) {
+        Address address = existingAddresses[i];
+        geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, NULL);
+
+        if (zipCodePolygon == NULL || !zipCodePolygon->contains(address.coordinate.data())) {
+            address.zipCode = 0;
         }
     }
 }
