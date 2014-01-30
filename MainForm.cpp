@@ -79,6 +79,8 @@ void MainForm::setOutputFile() {
 
 void MainForm::convert() {
     widget.pushButton_2->setEnabled(false);
+    widget.tab->setEnabled(false);
+    widget.tabWidget->setCurrentIndex(1);
     qApp->processEvents();
     downloadOSM();
 }
@@ -315,10 +317,25 @@ void MainForm::readZipCodeFile() {
     }
     zipCodeWays.clear();
 
+    if (widget.checkBox_8->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("Zip Codes:");
+
+        QList<int> zipCodeKeys = zipCodes.keys();
+        for (int i = 0; i < zipCodes.size(); i++) {
+            widget.textBrowser->append(QString::number(zipCodeKeys.at(i)));
+        }
+    }
+
     readBuildingFile();
 }
 
 void MainForm::readBuildingFile() {
+    if (widget.lineEdit_4->text().isEmpty()) {
+        readAddressFile();
+        return;
+    }
+
     QFile file(widget.lineEdit_4->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCritical() << "Error: Couldn't open " << widget.lineEdit_4->text();
@@ -396,6 +413,10 @@ void MainForm::readBuildingFile() {
 }
 
 void MainForm::validateBuildings() {
+    if (widget.checkBox_9->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("Removed Overlapping Buildings: ");
+    }
     for (int i = 0; i < buildings.size(); i++) {
         Building building1 = buildings.at(i);
         geos::geom::prep::PreparedPolygon polygon(building1.getBuilding().data());
@@ -404,9 +425,21 @@ void MainForm::validateBuildings() {
 
             if (polygon.intersects(building2.getBuilding().data())) {
                 if (building1.getYear() >= building2.getYear()) {
+                    if (widget.checkBox_9->isChecked()) {
+                        const geos::geom::Coordinate* centroid = building2.getBuilding()
+                                .data()->getCentroid()->getCoordinate();
+                        widget.textBrowser->append(tr("(%1, %2)")
+                                .arg(centroid->y).arg(centroid->x));
+                    }
                     buildings.removeAt(j);
                     j--;
                 } else {
+                    if (widget.checkBox_9->isChecked()) {
+                        const geos::geom::Coordinate* centroid = building1.getBuilding()
+                                .data()->getCentroid()->getCoordinate();
+                        widget.textBrowser->append(tr("(%1, %2)")
+                                .arg(centroid->y).arg(centroid->x));
+                    }
                     buildings.removeAt(i);
                     i--;
                     break;
@@ -674,6 +707,11 @@ void MainForm::checkZipCodes() {
 }
 
 void MainForm::mergeAddressBuilding() {
+    if (widget.checkBox_10->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("Addresses merged into buildings");
+    }
+
     for (int i = 0; i < buildings.size(); i++) {
         Building building = buildings.at(i);
         bool addressSet = false;
@@ -697,7 +735,12 @@ void MainForm::mergeAddressBuilding() {
 
     QList<Address> mergedAddresses = addressBuildings.keys();
     for (int i = 0; i < mergedAddresses.size(); i++) {
-        newAddresses.removeOne(mergedAddresses.at(i));
+        Address mergedAddress = mergedAddresses.at(i);
+        newAddresses.removeOne(mergedAddress);
+        if (widget.checkBox_10->isChecked()) {
+            widget.textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
+                    mergedAddress.street.name));
+        }
     }
 
     QList<Building> mergedBuildings = addressBuildings.values();
@@ -954,6 +997,7 @@ void MainForm::cleanup() {
     addressBuildings.clear();
 
     widget.pushButton_2->setEnabled(true);
+    widget.tab->setEnabled(true);
 }
 
 QString MainForm::expandQuadrant(QString street) {
