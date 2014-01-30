@@ -17,6 +17,8 @@
 #include <geos/geom/CoordinateSequenceFactory.h>
 #include <geos/geom/CoordinateArraySequenceFactory.h>
 #include <geos/geom/prep/PreparedPolygon.h>
+#include <geos/util.h>
+#include <geos/geom/LinearRing.h>
 
 MainForm::MainForm() {
     widget.setupUi(this);
@@ -200,10 +202,6 @@ void MainForm::readZipCodeFile() {
         return;
     }
 
-    // Bypass reading the zip-code file for now.
-    readBuildingFile();
-    return;
-
     QHash<int, geos::geom::Point*> zipCodeNodes;
     QHash<int, geos::geom::LineString*> zipCodeWays;
 
@@ -219,6 +217,7 @@ void MainForm::readZipCodeFile() {
     int zipCode;
     bool polygon = false;
     geos::geom::CoordinateSequence* baseSequence = NULL;
+    QList<geos::geom::Geometry*> holes;
     QList<geos::geom::Coordinate> coordinates;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
@@ -239,13 +238,29 @@ void MainForm::readZipCodeFile() {
                         if (baseSequence == NULL) {
                             baseSequence = sequence;
                         } else {
-                            baseSequence->add(sequence, true, true);
+                            if (sequence->front().equals2D(baseSequence->back())) {
+                                baseSequence->add(sequence, true, true);
+                                baseSequence->removeRepeatedPoints();
+                            } else if (sequence->back().equals2D(baseSequence->front())) {
+                                sequence->add(baseSequence, true, true);
+                                sequence->removeRepeatedPoints();
+                                baseSequence = sequence;
+                            }
+                        }
+                    } else if (reader.attributes().value("role").toString() == "inner") {
+                        geos::geom::CoordinateSequence* sequence = zipCodeWays
+                                .value(reader.attributes().value("ref").toString().toInt())
+                                ->getCoordinates();
+                        try {
+                            holes.append(factory->createLinearRing(sequence));
+                        } catch(geos::util::IllegalArgumentException e) {
+                            qCritical() << e.what();
                         }
                     }
 
                 } else if (reader.name().toString() == "nd") {
                     coordinates.append(*zipCodeNodes.value(reader.attributes()
-                            .value("k").toString().toInt())->getCoordinate());
+                            .value("ref").toString().toInt())->getCoordinate());
                 } else if (reader.name().toString() == "tag") {
                     if (reader.attributes().value("k") == "addr:postcode") {
                         polygon = true;
@@ -264,7 +279,8 @@ void MainForm::readZipCodeFile() {
                     }
                     if (polygon) {
                         geos::geom::LinearRing* ring = factory->createLinearRing(sequence);
-                        std::vector<geos::geom::Geometry*> empty = QVector<geos::geom::Geometry*>().toStdVector();
+                        std::vector<geos::geom::Geometry*> empty =
+                                QVector<geos::geom::Geometry*>().toStdVector();
                         zipCodes.insert(zipCode, factory->createPolygon(ring,
                                 &empty));
                         zipCode = 0;
@@ -272,6 +288,15 @@ void MainForm::readZipCodeFile() {
                     }
                     zipCodeWays.insert(wayId, factory->createLineString(sequence));
                     coordinates.clear();
+                } else if (reader.name().toString() == "relation") {
+                    geos::geom::LinearRing* outerRing = factory
+                            ->createLinearRing(baseSequence);
+                    std::vector<geos::geom::Geometry*> innerHoles = holes
+                            .toVector().toStdVector();
+                    zipCodes.insert(zipCode, factory->createPolygon(outerRing,
+                        &innerHoles));
+                    baseSequence = NULL;
+                    holes.clear();
                 }
                 break;
             default:
