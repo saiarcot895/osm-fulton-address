@@ -37,7 +37,6 @@ private:
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<uint, geos::geom::Point*> nodes;
-    QHash<int, geos::geom::Point*> buildingNodes;
     QHash<int, geos::geom::Polygon*> zipCodes;
     QHash<QString, Street*> streets;
     QList<Building> buildings;

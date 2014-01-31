@@ -348,9 +348,15 @@ void MainForm::readBuildingFile() {
     double maxLon = widget.doubleSpinBox_4->value();
     double maxLat = widget.doubleSpinBox_3->value();
 
+    QHash<qlonglong, geos::geom::Point*> buildingNodes;
+    QHash<qlonglong, geos::geom::LinearRing*> buildingWays;
+
     QXmlStreamReader reader(&file);
     Building* building = NULL;
-    geos::geom::CoordinateSequence* sequence;
+    geos::geom::CoordinateSequence* sequence = NULL;
+    geos::geom::LinearRing* outerBuildingWay = NULL;
+    QList<geos::geom::Geometry*> holes;
+    qlonglong wayId = 0;
     bool skip1 = true;
     bool skip2 = true;
     while (!reader.atEnd()) {
@@ -360,17 +366,28 @@ void MainForm::readBuildingFile() {
                     geos::geom::Coordinate coordinate;
                     coordinate.y = reader.attributes().value("lat").toString().toDouble();
                     coordinate.x = reader.attributes().value("lon").toString().toDouble();
-                    int nodes = reader.attributes().value("id").toString().toInt();
+                    qlonglong nodes = reader.attributes().value("id").toString().toLongLong();
                     buildingNodes.insert(nodes, factory->createPoint(coordinate));
                 } else if (reader.name().toString() == "way") {
                     building = new Building();
                     sequence = factory->getCoordinateSequenceFactory()->create
                             ((std::vector<geos::geom::Coordinate>*) NULL, 2);
+                    wayId = reader.attributes().value("id").toString().toLongLong();
+                } else if (reader.name().toString() == "relation") {
+                    building = new Building();
+                } else if (reader.name().toString() == "member") {
+                    if (reader.attributes().value("role").toString() == "outer") {
+                        outerBuildingWay = buildingWays.value(reader.attributes()
+                                .value("ref").toString().toLongLong());
+                    } else if (reader.attributes().value("role").toString() == "inner") {
+                        holes.append(buildingWays.value(reader.attributes()
+                                .value("ref").toString().toLongLong()));
+                    }
                 } else if (reader.name().toString() == "nd") {
                     if (building != NULL) {
                         const geos::geom::Coordinate* coordinate = buildingNodes
                             .value(reader.attributes().value("ref")
-                            .toString().toInt())->getCoordinate();
+                            .toString().toLongLong())->getCoordinate();
                         if (coordinate->x <= maxLon && coordinate->x >= minLon
                                 && coordinate->y >= maxLat && coordinate->y <= minLat) {
                             skip2 = false;
@@ -388,12 +405,17 @@ void MainForm::readBuildingFile() {
                 break;
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "way") {
-                    if (building != NULL && !skip1 && !skip2) {
+                    if (building != NULL) {
                         geos::geom::LinearRing* linearRing = factory->
                                 createLinearRing(sequence);
-                        building->setBuilding(QSharedPointer<geos::geom::Polygon>
-                            (factory->createPolygon(linearRing, NULL)));
-                        buildings.append(*building);
+                        if (!skip1 && !skip2) {
+                            building->setBuilding(QSharedPointer<geos::geom::Polygon>
+                                (factory->createPolygon(linearRing, NULL)));
+                            buildings.append(*building);
+                        } else {
+                            buildingWays.insert(wayId, linearRing);
+                            delete building;
+                        }
                     } else {
                         delete building;
                         delete sequence;
@@ -402,6 +424,16 @@ void MainForm::readBuildingFile() {
                     sequence = NULL;
                     skip1 = true;
                     skip2 = true;
+                } else if (reader.name().toString() == "relation") {
+                    if (building != NULL && !skip1) {
+                        std::vector<geos::geom::Geometry*> innerHoles = holes
+                                .toVector().toStdVector();
+                        building->setBuilding(QSharedPointer<geos::geom::Polygon>
+                            (factory->createPolygon(outerBuildingWay, &innerHoles)));
+                        buildings.append(*building);
+                        holes.clear();
+                        outerBuildingWay = NULL;
+                    }
                 }
                 break;
             default:
@@ -979,12 +1011,6 @@ void MainForm::cleanup() {
         delete point;
     }
     nodes.clear();
-    QList<geos::geom::Point*> buildingPointValues = buildingNodes.values();
-    for (int i = 0; i < buildingPointValues.size(); i++) {
-        geos::geom::Point* point = buildingPointValues.at(i);
-        delete point;
-    }
-    buildingNodes.clear();
     QList<Street*> streetValues = streets.values();
     for (int i = 0; i < streetValues.size(); i++) {
         Street* street = streetValues.at(i);
