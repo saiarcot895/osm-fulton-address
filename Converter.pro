@@ -7,9 +7,9 @@ VERSION = 1.0.0
 CONFIG -= debug_and_release app_bundle lib_bundle
 CONFIG += release 
 PKGCONFIG +=
-QT = core gui widgets network
-SOURCES += Address.cpp MainForm.cpp Street.cpp main.cpp
-HEADERS += Address.h MainForm.h Street.h
+QT = core gui network
+SOURCES += Address.cpp MainForm.cpp Street.cpp main.cpp Building.cpp
+HEADERS += Address.h MainForm.h Street.h Building.h
 FORMS += MainForm.ui
 RESOURCES +=
 TRANSLATIONS +=
@@ -21,5 +21,10 @@ QMAKE_CC = gcc
 QMAKE_CXX = g++
 DEFINES += 
 INCLUDEPATH += 
-LIBS += `geos-config --libs`  
-QMAKE_CXXFLAGS=`geos-config --cflags`
+unix{
+  LIBS += `geos-config --libs`
+  QMAKE_CXXFLAGS=`geos-config --cflags`
+}
+macx{
+  LIBS += -framework geos
+}
