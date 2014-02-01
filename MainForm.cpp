@@ -465,12 +465,24 @@ void MainForm::readBuildingFile() {
                     std::vector<geos::geom::Geometry*> innerHoles = holes
                             .toVector().toStdVector();
 
-					Building building;
-					building.setFeatureID(featureId);
-					building.setYear(year);
-					building.setBuilding(QSharedPointer<geos::geom::Polygon>
-						(factory->createPolygon(*outerRing, innerHoles)));
-                    buildings.append(building);
+					bool skip = true;
+					for (std::size_t i = 0; i < baseSequence->size(); i++) {
+						const geos::geom::Coordinate coord = baseSequence->getAt(i);
+						if (coord.y >= minLat && coord.y <= maxLat
+								&& coord.x >= minLon && coord.x <= maxLon) {
+							skip = false;
+							break;
+						}
+					}
+
+					if (!skip) {
+						Building building;
+						building.setFeatureID(featureId);
+						building.setYear(year);
+						building.setBuilding(QSharedPointer<geos::geom::Polygon>
+							(factory->createPolygon(*outerRing, innerHoles)));
+						buildings.append(building);
+					}
 
 					delete outerRing;
                     baseSequence = NULL;
@@ -815,7 +827,7 @@ void MainForm::mergeAddressBuilding() {
 
             if (polygon.contains(address.coordinate.data())) {
                 if (!addressSet) {
-                    addressBuildings.insertMulti(address, building);
+                    addressBuildings.insert(address, building);
                     addressSet = true;
                 } else {
                     addressBuildings.remove(addressBuildings.key(building));
@@ -840,7 +852,69 @@ void MainForm::mergeAddressBuilding() {
         buildings.removeOne(mergedBuildings.at(i));
     }
 
-    outputChangeFile();
+	mergeNearbyAddressBuilding();
+}
+
+void MainForm::mergeNearbyAddressBuilding() {
+	if (widget.checkBox_10->isChecked()) {
+        widget.textBrowser->append("");
+        widget.textBrowser->append("Nearby addresses merged into buildings");
+    }
+
+	QHash<Address, Building> nearbyAddressBuildings;
+
+	// At this point, only unmerged buildings and addresses exist in the buildings
+	// and addresses list.
+	for (int i = 0; i < buildings.size(); i++) {
+        Building building = buildings.at(i);
+		double minDistance = 5;
+		bool addressSet = false;
+
+		geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
+
+        for (int j = 0; j < newAddresses.size(); j++) {
+            Address address = newAddresses.at(j);
+
+			double distance = building.getBuilding().data()->distance(address
+				.coordinate.data()) * DEGREES_TO_METERS;
+            if (distance < minDistance) {
+				// Make sure the address isn't in the building. This was checked
+				// for in the previous method, and if it wasn't merged in there,
+				// then it is because there are multiple addresses in the building
+				// bounds.
+                if (!polygon.contains(address.coordinate.data())) {
+                    nearbyAddressBuildings.insert(address, building);
+					minDistance = distance;
+					addressSet = true;
+                } else {
+					if (addressSet) {
+						nearbyAddressBuildings.remove(nearbyAddressBuildings.key(building));
+					}
+                    break;
+                }
+            }
+        }
+    }
+
+	QList<Address> mergedAddresses = nearbyAddressBuildings.keys();
+    for (int i = 0; i < mergedAddresses.size(); i++) {
+        Address mergedAddress = mergedAddresses.at(i);
+        newAddresses.removeOne(mergedAddress);
+        if (widget.checkBox_10->isChecked()) {
+            widget.textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
+                    mergedAddress.street.name));
+        }
+    }
+
+    QList<Building> mergedBuildings = nearbyAddressBuildings.values();
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        buildings.removeOne(mergedBuildings.at(i));
+    }
+
+	// Merge the two lists.
+	addressBuildings.unite(nearbyAddressBuildings);
+
+	outputChangeFile();
 }
 
 void MainForm::outputChangeFile() {

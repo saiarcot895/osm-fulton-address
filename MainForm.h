@@ -63,6 +63,7 @@ private:
     void validateBetweenAddresses();
     void checkZipCodes();
     void mergeAddressBuilding();
+	void mergeNearbyAddressBuilding();
     void outputChangeFile();
     void writeXMLFile(QFile& file,
             QList<Address>* address,
