@@ -514,7 +514,7 @@ void MainForm::validateBuildings() {
 
 void MainForm::simplifyBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
-        Building& building = buildings[i];
+        Building building = buildings[i];
         geos::geom::Polygon* polygon = building.getBuilding().data();
 
         if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 5) {
@@ -555,8 +555,14 @@ void MainForm::simplifyBuildings() {
         }
 
         geos::geom::LinearRing* newLinearRing = factory->createLinearRing(coordinates);
-        geos::geom::Polygon* newPolygon = factory->createPolygon(newLinearRing, NULL);
+		std::vector<geos::geom::Geometry*>* innerHoles = new std::vector<geos::geom::Geometry*>();
+		innerHoles->reserve(polygon->getNumInteriorRing());
+		for (std::size_t j = 0; j < polygon->getNumInteriorRing(); j++) {
+			innerHoles->push_back(polygon->getInteriorRingN(j)->clone());
+		}
+        geos::geom::Polygon* newPolygon = factory->createPolygon(newLinearRing, innerHoles);
         building.setBuilding(QSharedPointer<geos::geom::Polygon>(newPolygon));
+		buildings[i] = building;
     }
 
     readAddressFile();
@@ -920,7 +926,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
 
             const geos::geom::CoordinateSequence* coordinates = building.getBuilding()
                     .data()->getExteriorRing()->getCoordinatesRO();
-            for (int j = 0; j < coordinates->size() - 1; j++) {
+            for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
                 geos::geom::Coordinate coordinate = coordinates->getAt(j);
                 writer.writeStartElement("node");
                 writer.writeAttribute("id", tr("-%1").arg(id));
@@ -932,6 +938,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
 
             writer.writeStartElement("way");
             writer.writeAttribute("id", tr("-%1").arg(id));
+			int wayId = id;
             id++;
 
             for (int j = coordinates->size() - 1; j >= 1; j--) {
@@ -943,12 +950,73 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
             writer.writeEndElement();
 
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "building");
-            writer.writeAttribute("v", "yes");
-            writer.writeEndElement();
+			std::size_t numHoles = building.getBuilding().data()->getNumInteriorRing();
+			if (numHoles > 0) {
+				writer.writeEndElement();
 
-            writer.writeEndElement();
+				QList<int> innerWayIds;
+
+				for (std::size_t j = 0; j < numHoles; j++) {
+					const geos::geom::CoordinateSequence* innerCoordinates = building
+						.getBuilding().data()->getInteriorRingN(j)->getCoordinatesRO();
+
+					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+						writer.writeStartElement("node");
+						writer.writeAttribute("id", tr("-%1").arg(id));
+						id++;
+						writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+						writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+						writer.writeEndElement();
+					}
+
+					writer.writeStartElement("way");
+					writer.writeAttribute("id", tr("-%1").arg(id));
+					innerWayIds.append(id);
+					id++;
+
+					for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+						writer.writeStartElement("nd");
+						writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+						writer.writeEndElement();
+					}
+					writer.writeStartElement("nd");
+					writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+					writer.writeEndElement();
+
+					writer.writeEndElement();
+				}
+
+				writer.writeStartElement("relation");
+				writer.writeAttribute("id", tr("-%1").arg(id));
+				id++;
+
+				writer.writeStartElement("member");
+				writer.writeAttribute("type", "way");
+				writer.writeAttribute("ref", tr("-%1").arg(wayId));
+				writer.writeAttribute("role", "outer");
+				writer.writeEndElement();
+
+				for (int j = 0; j < innerWayIds.size(); j++) {
+					writer.writeStartElement("member");
+					writer.writeAttribute("type", "way");
+					writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+					writer.writeAttribute("role", "inner");
+					writer.writeEndElement();
+				}
+
+				writer.writeStartElement("tag");
+				writer.writeAttribute("k", "type");
+				writer.writeAttribute("v", "multipolygon");
+				writer.writeEndElement();
+			}
+
+			writer.writeStartElement("tag");
+			writer.writeAttribute("k", "building");
+			writer.writeAttribute("v", "yes");
+			writer.writeEndElement();
+
+			writer.writeEndElement();
         }
     }
 
@@ -973,6 +1041,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
 
             writer.writeStartElement("way");
             writer.writeAttribute("id", tr("-%1").arg(id));
+			int wayId = id;
             id++;
 
             for (int j = coordinates->size() - 1; j >= 1; j--) {
@@ -983,6 +1052,67 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             writer.writeStartElement("nd");
             writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
             writer.writeEndElement();
+
+			std::size_t numHoles = building.getBuilding().data()->getNumInteriorRing();
+			if (numHoles > 0) {
+				writer.writeEndElement();
+
+				QList<int> innerWayIds;
+
+				for (std::size_t j = 0; j < numHoles; j++) {
+					const geos::geom::CoordinateSequence* innerCoordinates = building
+						.getBuilding().data()->getInteriorRingN(j)->getCoordinatesRO();
+
+					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+						writer.writeStartElement("node");
+						writer.writeAttribute("id", tr("-%1").arg(id));
+						id++;
+						writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+						writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+						writer.writeEndElement();
+					}
+
+					writer.writeStartElement("way");
+					writer.writeAttribute("id", tr("-%1").arg(id));
+					innerWayIds.append(id);
+					id++;
+
+					for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+						writer.writeStartElement("nd");
+						writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+						writer.writeEndElement();
+					}
+					writer.writeStartElement("nd");
+					writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+					writer.writeEndElement();
+
+					writer.writeEndElement();
+				}
+
+				writer.writeStartElement("relation");
+				writer.writeAttribute("id", tr("-%1").arg(id));
+				id++;
+
+				writer.writeStartElement("member");
+				writer.writeAttribute("type", "way");
+				writer.writeAttribute("ref", tr("-%1").arg(wayId));
+				writer.writeAttribute("role", "outer");
+				writer.writeEndElement();
+
+				for (int j = 0; j < innerWayIds.size(); j++) {
+					writer.writeStartElement("member");
+					writer.writeAttribute("type", "way");
+					writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+					writer.writeAttribute("role", "inner");
+					writer.writeEndElement();
+				}
+
+				writer.writeStartElement("tag");
+				writer.writeAttribute("k", "type");
+				writer.writeAttribute("v", "multipolygon");
+				writer.writeEndElement();
+			}
 
             writer.writeStartElement("tag");
             writer.writeAttribute("k", "building");
