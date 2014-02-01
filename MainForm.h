@@ -24,6 +24,7 @@ class MainForm : public QMainWindow {
     Q_OBJECT
 public:
     MainForm();
+	MainForm(QStringList options);
     virtual ~MainForm();
 public slots:
     void setAddressFile();

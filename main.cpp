@@ -15,7 +15,17 @@ int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
 
-    MainForm mainForm;
+	QStringList arguments = app.arguments();
+	QStringList options;
+
+	for (int i = 1; i < arguments.size(); i++) {
+		QString argument = arguments.at(i);
+		if (argument.startsWith("--")) {
+			options.append(argument);
+		}
+	}
+
+    MainForm mainForm(options);
     mainForm.show();
 
     return app.exec();

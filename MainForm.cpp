@@ -38,6 +38,31 @@ MainForm::MainForm() {
     connect(nam, SIGNAL(finished(QNetworkReply*)), this, SLOT(readOSM(QNetworkReply*)));
 }
 
+MainForm::MainForm(QStringList options) : MainForm() {
+	while (!options.isEmpty()) {
+		QString option = options.takeFirst();
+		QStringList params = option.remove("--").split('=');
+		if (params.size() == 2) {
+			QString variable = params.at(0);
+			if (variable == "address") {
+				widget.lineEdit->setText(params.at(1));
+			} else if (variable == "building") {
+				widget.lineEdit_4->setText(params.at(1));
+			} else if (variable == "output") {
+				widget.lineEdit_2->setText(params.at(1));
+			} else if (variable == "zip-code") {
+				widget.lineEdit_3->setText(params.at(1));
+			} else if (variable == "bbox") {
+				QStringList coords = params.at(1).split(",");
+				widget.doubleSpinBox->setValue(coords.at(0).toDouble());
+				widget.doubleSpinBox_2->setValue(coords.at(1).toDouble());
+				widget.doubleSpinBox_3->setValue(coords.at(2).toDouble());
+				widget.doubleSpinBox_4->setValue(coords.at(3).toDouble());
+			}
+		}
+	}
+}
+
 QString MainForm::openFile() {
     return QFileDialog::getOpenFileName(this, tr("Open File"), "",
             tr("OSM File (*.osm);;XML File (*.xml)"));
