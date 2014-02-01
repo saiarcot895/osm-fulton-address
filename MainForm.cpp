@@ -421,7 +421,7 @@ void MainForm::readBuildingFile() {
                     }
 
 					if (!skip && !skip1) {
-						geos::geom::LinearRing* ring = factory->createLinearRing(sequence);
+						geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
 						Building building;
 						building.setFeatureID(featureId);
 						building.setYear(year);
@@ -432,7 +432,7 @@ void MainForm::readBuildingFile() {
 
 					skip1 = true;
 
-                    buildingWays.insert(wayId, factory->createLineString(sequence->clone()));
+                    buildingWays.insert(wayId, factory->createLineString(sequence));
                     coordinates.clear();
                 } else if (reader.name().toString() == "relation") {
                     geos::geom::LinearRing* outerRing = factory
@@ -447,6 +447,7 @@ void MainForm::readBuildingFile() {
 						(factory->createPolygon(*outerRing, innerHoles)));
                     buildings.append(building);
 
+					delete outerRing;
                     baseSequence = NULL;
                     holes.clear();
                 }
