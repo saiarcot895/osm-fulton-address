@@ -869,6 +869,7 @@ void MainForm::mergeNearbyAddressBuilding() {
         Building building = buildings.at(i);
 		double minDistance = 5;
 		bool addressSet = false;
+		Address setAddress;
 
 		geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
 
@@ -878,6 +879,9 @@ void MainForm::mergeNearbyAddressBuilding() {
 			double distance = building.getBuilding().data()->distance(address
 				.coordinate.data()) * DEGREES_TO_METERS;
             if (distance < minDistance) {
+				if (addressSet) {
+					nearbyAddressBuildings.remove(setAddress);
+				}
 				// Make sure the address isn't in the building. This was checked
 				// for in the previous method, and if it wasn't merged in there,
 				// then it is because there are multiple addresses in the building
@@ -886,10 +890,8 @@ void MainForm::mergeNearbyAddressBuilding() {
                     nearbyAddressBuildings.insert(address, building);
 					minDistance = distance;
 					addressSet = true;
+					setAddress = address;
                 } else {
-					if (addressSet) {
-						nearbyAddressBuildings.remove(nearbyAddressBuildings.key(building));
-					}
                     break;
                 }
             }

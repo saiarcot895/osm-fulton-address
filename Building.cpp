@@ -10,11 +10,14 @@
 
 Building::Building() {
     year = 0;
+	id = 0;
 }
 
 Building::Building(const Building& orig) {
     year = orig.year;
     building = orig.building;
+	id = orig.id;
+	featureID = orig.featureID;
 }
 
 uint Building::getId() const {
