@@ -115,6 +115,7 @@ void MainForm::downloadOSM() {
             "(node[\"addr:housenumber\"](%1,%2,%3,%4);"
             "way[\"addr:housenumber\"](%1,%2,%3,%4);"
             "way[\"name\"](%1,%2,%3,%4);"
+			"way[\"building\"](%1,%2,%3,%4);"
             "relation[\"addr:housenumber\"](%1,%2,%3,%4););"
             "out meta;>;out meta;")
             .arg(widget.doubleSpinBox_3->value())
@@ -130,7 +131,10 @@ void MainForm::readOSM(QNetworkReply* reply) {
     if (reply->error() == QNetworkReply::NoError) {
         QXmlStreamReader reader(reply->readAll());
         Street* street = NULL;
+		Building* building = NULL;
         Address* address = NULL;
+		uint id = 0;
+		QList<uint> nodeIndices;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -148,7 +152,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         // now, assume it is a road, since we need the nodes and
                         // those come before the way tags
                         current = Way;
-                        street = new Street();
+						id = reader.attributes().value("lon").toString().toUInt();
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
                             delete address;
@@ -158,35 +162,50 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             // We don't care what street instance the address is
                             // linked to. If there is any address with the same number
                             // and street name, skip it.
-                            address->street.name = reader.attributes().value("v").toString();
-                            existingAddresses.append(*address);
-                            address = NULL;
+							if (address != NULL) {
+								address->street.name = reader.attributes().value("v").toString();
+								existingAddresses.append(*address);
+								address = NULL;
+							}
                         } else if (current == Way && reader.attributes().value("k") == "building") {
-                            // No buildings...yet.
-                            current = None;
-                            delete street;
+                            // We now know this is a building.
+                            current = BuildingConfirmed;
+							building = new Building();
+							building->setId(id);
+							building->setNodeIndices(nodeIndices);
                         } else if (reader.attributes().value("k") == "highway"
                                 && current == Way) {
                             // We now know this is a way.
                             current = WayConfirmed;
+							street = new Street();
+							street->nodeIndices = nodeIndices;
                         } else if (reader.attributes().value("k") == "name"
                                 && current == WayConfirmed) {
                             street->name = reader.attributes().value("v").toString();
                         }
                     } else if (reader.name().toString() == "nd" && current == Way) {
-                        street->nodeIndices.append(reader.attributes().value("ref").toString().toUInt());
+                        nodeIndices.append(reader.attributes().value("ref").toString().toUInt());
                     }
                     break;
                 case QXmlStreamReader::EndElement:
-                    if (current == WayConfirmed && reader.name().toString() == "way") {
-                        streets.insertMulti(street->name.toUpper(), street);
-                        current = None;
+                    if (reader.name().toString() == "way") {
+						if (current == WayConfirmed) {
+							streets.insertMulti(street->name.toUpper(), street);
+							current = None;
+							street = NULL;
+						} else if (current == BuildingConfirmed) {
+							existingBuildings.append(*building);
+							current = None;
+							building = NULL;
+						}
+                        nodeIndices.clear();
                     }
                     break;
                 default:
                     break;
             }
         }
+
         QList<Street*> streetValues = streets.values();
         for (int i = 0; i < streetValues.size(); i++) {
             Street* street = streetValues.at(i);
@@ -198,6 +217,22 @@ void MainForm::readOSM(QNetworkReply* reply) {
             }
             street->path = QSharedPointer<geos::geom::LineString>(factory->createLineString(nodePoints));
         }
+
+		for (int i = 0; i < existingBuildings.size(); i++) {
+			Building building = existingBuildings[i];
+			geos::geom::CoordinateSequence* nodePoints = factory
+                    ->getCoordinateSequenceFactory()->create(
+                    (std::vector<geos::geom::Coordinate>*) NULL, 2);
+            for (int j = 0; j < building.getNodeIndices().size(); j++) {
+                nodePoints->add(*(nodes.value(building.getNodeIndices().at(j))
+						->getCoordinate()));
+            }
+			geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
+			building.setBuilding(QSharedPointer<geos::geom::Polygon>(factory
+					->createPolygon(ring, NULL)));
+			existingBuildings[i] = building;
+		}
+
         if (widget.checkBox->isChecked()) {
             widget.textBrowser->append("Streets:");
             QList<Street*> streetValues = streets.values();

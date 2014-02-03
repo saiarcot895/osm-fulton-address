@@ -40,6 +40,7 @@ private:
     QHash<uint, geos::geom::Point*> nodes;
     QHash<int, geos::geom::Polygon*> zipCodes;
     QHash<QString, Street*> streets;
+	QList<Building> existingBuildings;
     QList<Building> buildings;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
@@ -50,6 +51,7 @@ private:
         Node,
         Way,
         WayConfirmed,
+		BuildingConfirmed,
         Relation
     };
 
