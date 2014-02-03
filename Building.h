@@ -16,19 +16,25 @@ public:
     Building();
     Building(const Building& orig);
 
+	uint getId() const;
     int getYear() const;
     QString getFeatureID() const;
     QSharedPointer<geos::geom::Polygon> getBuilding() const;
+	QList<uint> getNodeIndices() const;
 
+	void setId(uint id);
     void setYear(int year);
     void setFeatureID(QString featureID);
     void setBuilding(QSharedPointer<geos::geom::Polygon> building);
+	void setNodeIndices(QList<uint> nodeIndices);
 
     virtual ~Building();
 private:
+	uint id;
     int year;
     QString featureID;
     QSharedPointer<geos::geom::Polygon> building;
+	QList<uint> nodeIndices;
 };
 
 uint qHash(const Building& key);
