@@ -131,7 +131,6 @@ void MainForm::readOSM(QNetworkReply* reply) {
     if (reply->error() == QNetworkReply::NoError) {
         QXmlStreamReader reader(reply->readAll());
         Street* street = NULL;
-		Building* building = NULL;
         Address* address = NULL;
 		uint id = 0;
 		QList<uint> nodeIndices;
@@ -152,7 +151,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         // now, assume it is a road, since we need the nodes and
                         // those come before the way tags
                         current = Way;
-						id = reader.attributes().value("lon").toString().toUInt();
+						id = reader.attributes().value("id").toString().toUInt();
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
                             delete address;
@@ -170,9 +169,6 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         } else if (current == Way && reader.attributes().value("k") == "building") {
                             // We now know this is a building.
                             current = BuildingConfirmed;
-							building = new Building();
-							building->setId(id);
-							building->setNodeIndices(nodeIndices);
                         } else if (reader.attributes().value("k") == "highway"
                                 && current == Way) {
                             // We now know this is a way.
@@ -194,9 +190,11 @@ void MainForm::readOSM(QNetworkReply* reply) {
 							current = None;
 							street = NULL;
 						} else if (current == BuildingConfirmed) {
-							existingBuildings.append(*building);
+							Building building;
+							building.setId(id);
+							building.setNodeIndices(nodeIndices);
+							existingBuildings.append(building);
 							current = None;
-							building = NULL;
 						}
                         nodeIndices.clear();
                     }
@@ -219,18 +217,25 @@ void MainForm::readOSM(QNetworkReply* reply) {
         }
 
 		for (int i = 0; i < existingBuildings.size(); i++) {
-			Building building = existingBuildings[i];
+			Building building = existingBuildings.at(i);
 			geos::geom::CoordinateSequence* nodePoints = factory
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < building.getNodeIndices().size(); j++) {
-                nodePoints->add(*(nodes.value(building.getNodeIndices().at(j))
-						->getCoordinate()));
+				geos::geom::Coordinate coord = *(nodes.value(building.getNodeIndices().at(j))
+						->getCoordinate());
+                nodePoints->add(coord);
             }
-			geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
-			building.setBuilding(QSharedPointer<geos::geom::Polygon>(factory
-					->createPolygon(ring, NULL)));
-			existingBuildings[i] = building;
+			try {
+				geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
+				building.setBuilding(QSharedPointer<geos::geom::Polygon>(factory
+						->createPolygon(ring, NULL)));
+				existingBuildings.replace(i, building);
+			} catch (...) {
+				qDebug() << "Building skipped";
+				existingBuildings.removeAt(i);
+				i--;
+			}
 		}
 
         if (widget.checkBox->isChecked()) {
@@ -581,7 +586,26 @@ void MainForm::validateBuildings() {
         }
     }
 
-    simplifyBuildings();
+    removeIntersectingBuildings();
+}
+
+void MainForm::removeIntersectingBuildings() {
+	for (int i = 0; i < existingBuildings.size(); i++) {
+		Building existingBuilding = existingBuildings.at(i);
+
+		geos::geom::prep::PreparedPolygon polygon(existingBuilding.getBuilding()
+				.data());
+		for (int j = 0; j < buildings.size(); j++) {
+			Building building = buildings.at(j);
+
+			if (polygon.intersects(building.getBuilding().data())) {
+				buildings.removeAt(j);
+				j--;
+			}
+		}
+	}
+
+	simplifyBuildings();
 }
 
 void MainForm::simplifyBuildings() {

@@ -18,6 +18,7 @@ Building::Building(const Building& orig) {
     building = orig.building;
 	id = orig.id;
 	featureID = orig.featureID;
+	nodeIndices = orig.nodeIndices;
 }
 
 uint Building::getId() const {

@@ -59,6 +59,7 @@ private:
     void readZipCodeFile();
     void readBuildingFile();
     void validateBuildings();
+	void removeIntersectingBuildings();
     void simplifyBuildings();
     void readAddressFile();
     void validateAddresses();
