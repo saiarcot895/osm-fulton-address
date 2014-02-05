@@ -6,8 +6,14 @@
  */
 
 #include "MainForm.h"
+#include "ui_MainForm.h"
 #include "QFileDialog"
 #include "QUrl"
+
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+#include "QUrlQuery"
+#endif
+
 #include "QXmlStreamReader"
 #include "QDebug"
 #include "qmath.h"
@@ -19,45 +25,48 @@
 #include <geos/util.h>
 #include <geos/geom/LinearRing.h>
 
-MainForm::MainForm() {
-    widget.setupUi(this);
+MainForm::MainForm(QWidget *parent) :
+    QMainWindow(parent),
+    widget(new Ui::mainForm) {
+    widget->setupUi(this);
 
-    widget.doubleSpinBox->setValue(33.7857);
-    widget.doubleSpinBox_2->setValue(-84.3982);
-    widget.doubleSpinBox_3->setValue(33.7633);
-    widget.doubleSpinBox_4->setValue(-84.3574);
+    widget->doubleSpinBox->setValue(33.7857);
+    widget->doubleSpinBox_2->setValue(-84.3982);
+    widget->doubleSpinBox_3->setValue(33.7633);
+    widget->doubleSpinBox_4->setValue(-84.3574);
 
     nam = new QNetworkAccessManager(this);
     factory = new geos::geom::GeometryFactory(new geos::geom::PrecisionModel(), 4326);
 
-    connect(widget.pushButton, SIGNAL(clicked()), this, SLOT(setAddressFile()));
-    connect(widget.pushButton_2, SIGNAL(clicked()), this, SLOT(convert()));
-    connect(widget.pushButton_3, SIGNAL(clicked()), this, SLOT(setOutputFile()));
-    connect(widget.pushButton_4, SIGNAL(clicked()), this, SLOT(setZipCodeFile()));
-    connect(widget.pushButton_5, SIGNAL(clicked()), this, SLOT(setBuildingFile()));
+    connect(widget->pushButton, SIGNAL(clicked()), this, SLOT(setAddressFile()));
+    connect(widget->pushButton_2, SIGNAL(clicked()), this, SLOT(convert()));
+    connect(widget->pushButton_3, SIGNAL(clicked()), this, SLOT(setOutputFile()));
+    connect(widget->pushButton_4, SIGNAL(clicked()), this, SLOT(setZipCodeFile()));
+    connect(widget->pushButton_5, SIGNAL(clicked()), this, SLOT(setBuildingFile()));
     connect(nam, SIGNAL(finished(QNetworkReply*)), this, SLOT(readOSM(QNetworkReply*)));
 }
 
-MainForm::MainForm(QStringList options) : MainForm() {
+MainForm::MainForm(QStringList options, QWidget *parent) :
+    MainForm(parent) {
 	while (!options.isEmpty()) {
 		QString option = options.takeFirst();
 		QStringList params = option.remove("--").split('=');
 		if (params.size() == 2) {
 			QString variable = params.at(0);
 			if (variable == "address") {
-				widget.lineEdit->setText(params.at(1));
+                widget->lineEdit->setText(params.at(1));
 			} else if (variable == "building") {
-				widget.lineEdit_4->setText(params.at(1));
+                widget->lineEdit_4->setText(params.at(1));
 			} else if (variable == "output") {
-				widget.lineEdit_2->setText(params.at(1));
+                widget->lineEdit_2->setText(params.at(1));
 			} else if (variable == "zip-code") {
-				widget.lineEdit_3->setText(params.at(1));
+                widget->lineEdit_3->setText(params.at(1));
 			} else if (variable == "bbox") {
 				QStringList coords = params.at(1).split(",");
-				widget.doubleSpinBox->setValue(coords.at(0).toDouble());
-				widget.doubleSpinBox_2->setValue(coords.at(1).toDouble());
-				widget.doubleSpinBox_3->setValue(coords.at(2).toDouble());
-				widget.doubleSpinBox_4->setValue(coords.at(3).toDouble());
+                widget->doubleSpinBox->setValue(coords.at(0).toDouble());
+                widget->doubleSpinBox_2->setValue(coords.at(1).toDouble());
+                widget->doubleSpinBox_3->setValue(coords.at(2).toDouble());
+                widget->doubleSpinBox_4->setValue(coords.at(3).toDouble());
 			}
 		}
 	}
@@ -71,21 +80,21 @@ QString MainForm::openFile() {
 void MainForm::setAddressFile() {
     QString fileName = openFile();
     if (!fileName.isEmpty()) {
-        widget.lineEdit->setText(fileName);
+        widget->lineEdit->setText(fileName);
     }
 }
 
 void MainForm::setZipCodeFile() {
     QString fileName = openFile();
     if (!fileName.isEmpty()) {
-        widget.lineEdit_3->setText(fileName);
+        widget->lineEdit_3->setText(fileName);
     }
 }
 
 void MainForm::setBuildingFile() {
     QString fileName = openFile();
     if (!fileName.isEmpty()) {
-        widget.lineEdit_4->setText(fileName);
+        widget->lineEdit_4->setText(fileName);
     }
 }
 
@@ -94,18 +103,18 @@ void MainForm::setOutputFile() {
             tr("OsmChange File (*.osc)"));
     if (fileName.length() != 0) {
         if (fileName.endsWith(".osc")) {
-            widget.lineEdit_2->setText(fileName);
+            widget->lineEdit_2->setText(fileName);
         } else {
-            widget.lineEdit_2->setText(fileName + ".osc");
+            widget->lineEdit_2->setText(fileName + ".osc");
         }
 
     }
 }
 
 void MainForm::convert() {
-    widget.pushButton_2->setEnabled(false);
-    widget.tab->setEnabled(false);
-    widget.tabWidget->setCurrentIndex(1);
+    widget->pushButton_2->setEnabled(false);
+    widget->tab->setEnabled(false);
+    widget->tabWidget->setCurrentIndex(1);
     qApp->processEvents();
     downloadOSM();
 }
@@ -118,12 +127,18 @@ void MainForm::downloadOSM() {
 			"way[\"building\"](%1,%2,%3,%4);"
             "relation[\"addr:housenumber\"](%1,%2,%3,%4););"
             "out meta;>;out meta;")
-            .arg(widget.doubleSpinBox_3->value())
-            .arg(widget.doubleSpinBox_2->value())
-            .arg(widget.doubleSpinBox->value())
-            .arg(widget.doubleSpinBox_4->value());
+            .arg(widget->doubleSpinBox_3->value())
+            .arg(widget->doubleSpinBox_2->value())
+            .arg(widget->doubleSpinBox->value())
+            .arg(widget->doubleSpinBox_4->value());
     QUrl url("http://overpass-api.de/api/interpreter/");
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
+    QUrlQuery queries;
+    queries.addQueryItem("data", query);
+    url.setQuery(queries);
+#else
     url.addQueryItem("data", query);
+#endif
     nam->get(QNetworkRequest(url));
 }
 
@@ -238,32 +253,32 @@ void MainForm::readOSM(QNetworkReply* reply) {
 			}
 		}
 
-        if (widget.checkBox->isChecked()) {
-            widget.textBrowser->append("Streets:");
+        if (widget->checkBox->isChecked()) {
+            widget->textBrowser->append("Streets:");
             QList<Street*> streetValues = streets.values();
             for (int i = 0; i < streetValues.size(); i++) {
                 Street* street = streetValues.at(i);
-                widget.textBrowser->append(street->name);
+                widget->textBrowser->append(street->name);
             }
         }
-        if (widget.checkBox_2->isChecked()) {
-            widget.textBrowser->append("");
-            widget.textBrowser->append("Existing Addresses:");
+        if (widget->checkBox_2->isChecked()) {
+            widget->textBrowser->append("");
+            widget->textBrowser->append("Existing Addresses:");
             for (int i = 0; i < existingAddresses.size(); i++) {
                 Address address = existingAddresses.at(i);
-                widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+                widget->textBrowser->append(address.houseNumber + " " + address.street.name);
             }
         }
         readZipCodeFile();
     } else {
-        widget.textBrowser->insertPlainText(reply->errorString());
+        widget->textBrowser->insertPlainText(reply->errorString());
         qCritical() << reply->errorString();
         cleanup();
     }
 }
 
 void MainForm::readZipCodeFile() {
-    if (widget.lineEdit_3->text().isEmpty()) {
+    if (widget->lineEdit_3->text().isEmpty()) {
         readBuildingFile();
         return;
     }
@@ -271,9 +286,9 @@ void MainForm::readZipCodeFile() {
     QHash<int, geos::geom::Point*> zipCodeNodes;
     QHash<int, geos::geom::LineString*> zipCodeWays;
 
-    QFile file(widget.lineEdit_3->text());
+    QFile file(widget->lineEdit_3->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Error: Couldn't open " << widget.lineEdit_3->text();
+        qCritical() << "Error: Couldn't open " << widget->lineEdit_3->text();
         readBuildingFile();
         return;
     }
@@ -382,13 +397,13 @@ void MainForm::readZipCodeFile() {
     }
     zipCodeWays.clear();
 
-    if (widget.checkBox_8->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("Zip Codes:");
+    if (widget->checkBox_8->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Zip Codes:");
 
         QList<int> zipCodeKeys = zipCodes.keys();
         for (int i = 0; i < zipCodes.size(); i++) {
-            widget.textBrowser->append(QString::number(zipCodeKeys.at(i)));
+            widget->textBrowser->append(QString::number(zipCodeKeys.at(i)));
         }
     }
 
@@ -396,22 +411,22 @@ void MainForm::readZipCodeFile() {
 }
 
 void MainForm::readBuildingFile() {
-    if (widget.lineEdit_4->text().isEmpty()) {
+    if (widget->lineEdit_4->text().isEmpty()) {
         readAddressFile();
         return;
     }
 
-    QFile file(widget.lineEdit_4->text());
+    QFile file(widget->lineEdit_4->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Error: Couldn't open " << widget.lineEdit_4->text();
+        qCritical() << "Error: Couldn't open " << widget->lineEdit_4->text();
         readAddressFile();
         return;
     }
 
-    double minLon = widget.doubleSpinBox_2->value();
-    double maxLat = widget.doubleSpinBox->value();
-    double maxLon = widget.doubleSpinBox_4->value();
-    double minLat = widget.doubleSpinBox_3->value();
+    double minLon = widget->doubleSpinBox_2->value();
+    double maxLat = widget->doubleSpinBox->value();
+    double maxLon = widget->doubleSpinBox_4->value();
+    double minLat = widget->doubleSpinBox_3->value();
 
     QHash<qlonglong, geos::geom::Point*> buildingNodes;
     QHash<qlonglong, geos::geom::LineString*> buildingWays;
@@ -550,9 +565,9 @@ void MainForm::readBuildingFile() {
 }
 
 void MainForm::validateBuildings() {
-    if (widget.checkBox_9->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("Removed Overlapping Buildings: ");
+    if (widget->checkBox_9->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Removed Overlapping Buildings: ");
     }
     for (int i = 0; i < buildings.size(); i++) {
         Building building1 = buildings.at(i);
@@ -563,19 +578,19 @@ void MainForm::validateBuildings() {
 
             if (polygon.intersects(building2.getBuilding().data())) {
                 if (building1.getYear() >= building2.getYear()) {
-                    if (widget.checkBox_9->isChecked()) {
+                    if (widget->checkBox_9->isChecked()) {
                         const geos::geom::Coordinate* centroid = building2.getBuilding()
                                 .data()->getCentroid()->getCoordinate();
-                        widget.textBrowser->append(tr("(%1, %2)")
+                        widget->textBrowser->append(tr("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x));
                     }
                     buildings.removeAt(j);
                     j--;
                 } else {
-                    if (widget.checkBox_9->isChecked()) {
+                    if (widget->checkBox_9->isChecked()) {
                         const geos::geom::Coordinate* centroid = building1.getBuilding()
                                 .data()->getCentroid()->getCoordinate();
-                        widget.textBrowser->append(tr("(%1, %2)")
+                        widget->textBrowser->append(tr("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x));
                     }
                     buildings.removeAt(i);
@@ -665,9 +680,9 @@ void MainForm::simplifyBuildings() {
 }
 
 void MainForm::readAddressFile() {
-    QFile file(widget.lineEdit->text());
+    QFile file(widget->lineEdit->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Error: Couldn't open " << widget.lineEdit->text();
+        qCritical() << "Error: Couldn't open " << widget->lineEdit->text();
         cleanup();
         return;
     }
@@ -685,10 +700,10 @@ void MainForm::readAddressFile() {
                     coordinate.x = reader.attributes().value("lon").toString().toDouble();
                     address->coordinate = QSharedPointer<geos::geom::Point>(factory->createPoint(coordinate));
                     // Check to see if the address is inside the BBox
-                    skip = !(coordinate.y <= widget.doubleSpinBox->value() &&
-                            coordinate.y >= widget.doubleSpinBox_3->value() &&
-                            coordinate.x >= widget.doubleSpinBox_2->value() &&
-                            coordinate.x <= widget.doubleSpinBox_4->value());
+                    skip = !(coordinate.y <= widget->doubleSpinBox->value() &&
+                            coordinate.y >= widget->doubleSpinBox_3->value() &&
+                            coordinate.x >= widget->doubleSpinBox_2->value() &&
+                            coordinate.x <= widget->doubleSpinBox_4->value());
                 } else if (reader.name().toString() == "tag" && !skip) {
                     if (reader.attributes().value("k") == "addr:housenumber") {
                         address->houseNumber = reader.attributes().value("v").toString();
@@ -760,21 +775,21 @@ void MainForm::readAddressFile() {
                 break;
         }
     }
-    if (widget.checkBox_3->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("New Addresses (before validation):");
+    if (widget->checkBox_3->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("New Addresses (before validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
-            widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+            widget->textBrowser->append(address.houseNumber + " " + address.street.name);
         }
     }
     validateAddresses();
 }
 
 void MainForm::validateAddresses() {
-    if (widget.checkBox_4->isChecked() || widget.checkBox_5->isChecked() || widget.checkBox_6->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("Address Validations");
+    if (widget->checkBox_4->isChecked() || widget->checkBox_5->isChecked() || widget->checkBox_6->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Address Validations");
     }
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
@@ -782,16 +797,16 @@ void MainForm::validateAddresses() {
         double distance = address.coordinate.data()->distance(address.street.path.data()) * DEGREES_TO_METERS;
 
         if (distance > 100) {
-            if (widget.checkBox_5->isChecked()) {
-                widget.textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
+            if (widget->checkBox_5->isChecked()) {
+                widget->textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
                         .arg(address.street.name));
             }
             newAddresses.removeOne(address);
             excludedAddresses.append(address);
             i--;
         } else if (distance < 5) {
-            if (widget.checkBox_6->isChecked()) {
-                widget.textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
+            if (widget->checkBox_6->isChecked()) {
+                widget->textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
                         .arg(address.street.name));
             }
             newAddresses.removeOne(address);
@@ -801,12 +816,12 @@ void MainForm::validateAddresses() {
     }
     validateBetweenAddresses();
 
-    if (widget.checkBox_7->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("New Addresses (after validation):");
+    if (widget->checkBox_7->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("New Addresses (after validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
-            widget.textBrowser->append(address.houseNumber + " " + address.street.name);
+            widget->textBrowser->append(address.houseNumber + " " + address.street.name);
         }
     }
 
@@ -815,12 +830,12 @@ void MainForm::validateAddresses() {
 
 void MainForm::validateBetweenAddresses() {
     int sections = 2;
-    double lonSection = (widget.doubleSpinBox_4->value() - widget.doubleSpinBox_2->value()) / sections;
-    double latSection = (widget.doubleSpinBox->value() - widget.doubleSpinBox_3->value()) / sections;
+    double lonSection = (widget->doubleSpinBox_4->value() - widget->doubleSpinBox_2->value()) / sections;
+    double latSection = (widget->doubleSpinBox->value() - widget->doubleSpinBox_3->value()) / sections;
 
     for (int region = 0; region < sections * sections; region++) {
-        double minLon = widget.doubleSpinBox_2->value() + (region % sections) * lonSection;
-        double minLat = widget.doubleSpinBox->value() - (region / sections) * latSection;
+        double minLon = widget->doubleSpinBox_2->value() + (region % sections) * lonSection;
+        double minLat = widget->doubleSpinBox->value() - (region / sections) * latSection;
         double maxLon = minLon + lonSection;
         double maxLat = minLat - latSection;
 
@@ -843,8 +858,8 @@ void MainForm::validateBetweenAddresses() {
                 double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * 111000;
 
                 if (distance < 4) {
-                    if (widget.checkBox_4->isChecked()) {
-                        widget.textBrowser->append(tr("Too close to another address: %1 %2")
+                    if (widget->checkBox_4->isChecked()) {
+                        widget->textBrowser->append(tr("Too close to another address: %1 %2")
                                 .arg(address2.houseNumber).arg(address2.street.name));
                     }
                     newAddresses.removeOne(address2);
@@ -870,9 +885,9 @@ void MainForm::checkZipCodes() {
 }
 
 void MainForm::mergeAddressBuilding() {
-    if (widget.checkBox_10->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("Addresses merged into buildings");
+    if (widget->checkBox_10->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Addresses merged into buildings");
     }
 
     for (int i = 0; i < buildings.size(); i++) {
@@ -900,8 +915,8 @@ void MainForm::mergeAddressBuilding() {
     for (int i = 0; i < mergedAddresses.size(); i++) {
         Address mergedAddress = mergedAddresses.at(i);
         newAddresses.removeOne(mergedAddress);
-        if (widget.checkBox_10->isChecked()) {
-            widget.textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
+        if (widget->checkBox_10->isChecked()) {
+            widget->textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
                     mergedAddress.street.name));
         }
     }
@@ -915,9 +930,9 @@ void MainForm::mergeAddressBuilding() {
 }
 
 void MainForm::mergeNearbyAddressBuilding() {
-	if (widget.checkBox_10->isChecked()) {
-        widget.textBrowser->append("");
-        widget.textBrowser->append("Nearby addresses merged into buildings");
+    if (widget->checkBox_10->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Nearby addresses merged into buildings");
     }
 
 	QHash<Address, Building> nearbyAddressBuildings;
@@ -961,8 +976,8 @@ void MainForm::mergeNearbyAddressBuilding() {
     for (int i = 0; i < mergedAddresses.size(); i++) {
         Address mergedAddress = mergedAddresses.at(i);
         newAddresses.removeOne(mergedAddress);
-        if (widget.checkBox_10->isChecked()) {
-            widget.textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
+        if (widget->checkBox_10->isChecked()) {
+            widget->textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
                     mergedAddress.street.name));
         }
     }
@@ -979,38 +994,38 @@ void MainForm::mergeNearbyAddressBuilding() {
 }
 
 void MainForm::outputChangeFile() {
-    if (widget.lineEdit_2->text().isEmpty()) {
+    if (widget->lineEdit_2->text().isEmpty()) {
         cleanup();
         return;
     }
-    QString fullFileName = widget.lineEdit_2->text();
+    QString fullFileName = widget->lineEdit_2->text();
     QFile file(fullFileName);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         writeXMLFile(file, &newAddresses, &buildings, &addressBuildings);
     }
 
     for (int i = 0; i <= excludedAddresses.size() / 5000; i++) {
-        QString fullFileName = widget.lineEdit_2->text();
+        QString fullFileName = widget->lineEdit_2->text();
         if (i == 0) {
-            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
-                fullFileName = tr("%1_errors").arg(widget.lineEdit_2->text());
+            if (widget->lineEdit_2->text().lastIndexOf(".") == -1) {
+                fullFileName = tr("%1_errors").arg(widget->lineEdit_2->text());
             }
             else {
-                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
+                QString baseName = widget->lineEdit_2->text().left(widget->lineEdit_2
                         ->text().lastIndexOf("."));
-                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
-                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
+                QString extension = widget->lineEdit_2->text().right(widget->lineEdit_2->text().length()
+                        - widget->lineEdit_2->text().lastIndexOf(".") - 1);
                 fullFileName = tr("%1_errors.%2").arg(baseName).arg(extension);
             }
         } else {
-            if (widget.lineEdit_2->text().lastIndexOf(".") == -1) {
-                fullFileName = tr("%1_errors_%2").arg(widget.lineEdit_2->text()).arg(i);
+            if (widget->lineEdit_2->text().lastIndexOf(".") == -1) {
+                fullFileName = tr("%1_errors_%2").arg(widget->lineEdit_2->text()).arg(i);
             }
             else {
-                QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2
+                QString baseName = widget->lineEdit_2->text().left(widget->lineEdit_2
                         ->text().lastIndexOf("."));
-                QString extension = widget.lineEdit_2->text().right(widget.lineEdit_2->text().length()
-                        - widget.lineEdit_2->text().lastIndexOf(".") - 1);
+                QString extension = widget->lineEdit_2->text().right(widget->lineEdit_2->text().length()
+                        - widget->lineEdit_2->text().lastIndexOf(".") - 1);
                 fullFileName = tr("%1_errors_%2.%3").arg(baseName).arg(i).arg(extension);
             }
         }
@@ -1023,12 +1038,12 @@ void MainForm::outputChangeFile() {
     }
 
     // Output the log to a file
-    QString baseName = widget.lineEdit_2->text().left(widget.lineEdit_2->text()
+    QString baseName = widget->lineEdit_2->text().left(widget->lineEdit_2->text()
             .lastIndexOf("."));
     QFile logFile(baseName + ".log");
     if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream writer(&logFile);
-        writer << widget.textBrowser->document()->toPlainText();
+        writer << widget->textBrowser->document()->toPlainText();
         writer.flush();
     }
 
@@ -1341,8 +1356,8 @@ void MainForm::cleanup() {
     excludedAddresses.clear();
     addressBuildings.clear();
 
-    widget.pushButton_2->setEnabled(true);
-    widget.tab->setEnabled(true);
+    widget->pushButton_2->setEnabled(true);
+    widget->tab->setEnabled(true);
 }
 
 QString MainForm::expandQuadrant(QString street) {
@@ -1366,6 +1381,7 @@ QString MainForm::toTitleCase(QString str) {
 }
 
 MainForm::~MainForm() {
+    delete widget;
     delete nam;
     delete factory;
 }

@@ -10,21 +10,25 @@
 
 #define DEGREES_TO_METERS 111000
 
-#include "ui_MainForm.h"
 #include "Street.h"
 #include "Address.h"
 #include "Building.h"
 #include <geos/geom/GeometryFactory.h>
+#include <QMainWindow>
 #include "QtNetwork/QNetworkAccessManager"
 #include "QtNetwork/QNetworkReply"
 #include "QXmlStreamWriter"
 #include "QFile"
 
+namespace Ui {
+class mainForm;
+}
+
 class MainForm : public QMainWindow {
     Q_OBJECT
 public:
-    MainForm();
-	MainForm(QStringList options);
+    MainForm(QWidget *parent = 0);
+    MainForm(QStringList options, QWidget *parent = 0);
     virtual ~MainForm();
 public slots:
     void setAddressFile();
@@ -34,7 +38,7 @@ public slots:
     void convert();
     void downloadOSM();
 private:
-    Ui::mainForm widget;
+    Ui::mainForm* widget;
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<uint, geos::geom::Point*> nodes;

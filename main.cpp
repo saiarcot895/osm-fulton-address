@@ -6,7 +6,6 @@
  */
 
 #include <QApplication>
-#include <QWidget>
 #include "MainForm.h"
 
 int main(int argc, char *argv[]) {
