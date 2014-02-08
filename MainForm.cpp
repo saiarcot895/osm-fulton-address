@@ -283,15 +283,15 @@ void MainForm::readZipCodeFile() {
         return;
     }
 
-    QHash<int, geos::geom::Point*> zipCodeNodes;
-    QHash<int, geos::geom::LineString*> zipCodeWays;
-
     QFile file(widget->lineEdit_3->text());
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCritical() << "Error: Couldn't open " << widget->lineEdit_3->text();
         readBuildingFile();
         return;
     }
+
+    QHash<int, geos::geom::Point*> zipCodeNodes;
+    QHash<int, geos::geom::LineString*> zipCodeWays;
 
     QXmlStreamReader reader(&file);
     int wayId;
@@ -322,9 +322,13 @@ void MainForm::readZipCodeFile() {
                             if (sequence->front().equals2D(baseSequence->back())) {
                                 baseSequence->add(sequence, true, true);
                                 baseSequence->removeRepeatedPoints();
+                                delete sequence;
                             } else if (sequence->back().equals2D(baseSequence->front())) {
                                 sequence->add(baseSequence, true, true);
                                 sequence->removeRepeatedPoints();
+                                delete baseSequence;
+                                baseSequence = sequence;
+                            } else if (sequence->size() > baseSequence->size()) {
                                 baseSequence = sequence;
                             }
                         }
@@ -359,14 +363,13 @@ void MainForm::readZipCodeFile() {
                         sequence->add(coordinates.at(i));
                     }
                     if (polygon) {
-                        geos::geom::LinearRing* ring = factory->createLinearRing(sequence);
-                        std::vector<geos::geom::Geometry*> empty =
-                                QVector<geos::geom::Geometry*>().toStdVector();
+                        geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
                         zipCodes.insert(zipCode, factory->createPolygon(ring,
-                                &empty));
+                                NULL));
                         zipCode = 0;
                         polygon = false;
                     }
+
                     zipCodeWays.insert(wayId, factory->createLineString(sequence));
                     coordinates.clear();
                 } else if (reader.name().toString() == "relation") {
@@ -374,9 +377,11 @@ void MainForm::readZipCodeFile() {
                             ->createLinearRing(baseSequence);
                     std::vector<geos::geom::Geometry*> innerHoles = holes
                             .toVector().toStdVector();
-                    zipCodes.insert(zipCode, factory->createPolygon(outerRing,
-                        &innerHoles));
+                    zipCodes.insert(zipCode, factory->createPolygon(*outerRing,
+                        innerHoles));
+
                     baseSequence = NULL;
+                    delete outerRing;
                     holes.clear();
                 }
                 break;
@@ -549,15 +554,15 @@ void MainForm::readBuildingFile() {
         }
     }
 
-    QList<geos::geom::Point*> zipCodeNodesPoints = buildingNodes.values();
-    for (int i = 0; i < zipCodeNodesPoints.size(); i++) {
-        delete zipCodeNodesPoints.at(i);
+    QList<geos::geom::Point*> buildingNodesPoints = buildingNodes.values();
+    for (int i = 0; i < buildingNodesPoints.size(); i++) {
+        delete buildingNodesPoints.at(i);
     }
     buildingNodes.clear();
 
-    QList<geos::geom::LineString*> zipCodeWaysPoints = buildingWays.values();
-    for (int i = 0; i < zipCodeWaysPoints.size(); i++) {
-        delete zipCodeWaysPoints.at(i);
+    QList<geos::geom::LineString*> buildingWaysPoints = buildingWays.values();
+    for (int i = 0; i < buildingWaysPoints.size(); i++) {
+        delete buildingWaysPoints.at(i);
     }
     buildingWays.clear();
 
@@ -872,11 +877,27 @@ void MainForm::validateBetweenAddresses() {
 }
 
 void MainForm::checkZipCodes() {
+    if (zipCodes.size() == 0) {
+        mergeAddressBuilding();
+        return;
+    }
+
+    if (widget->checkBox_11->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Addresses not in zipcodes:");
+    }
+
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses[i];
         geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, NULL);
 
+        qDebug() << zipCodePolygon->getNumInteriorRing();
+
         if (zipCodePolygon == NULL || !zipCodePolygon->contains(address.coordinate.data())) {
+            if (widget->checkBox_11->isChecked()) {
+                widget->textBrowser->append(tr("%1 %2, %3").arg(address.houseNumber)
+                                            .arg(address.street.name).arg(address.zipCode));
+            }
             address.zipCode = 0;
             newAddresses[i] = address;
         }
