@@ -2,9 +2,10 @@
 #include "Street.h"
 #include "QHash"
 
-Address::Address() {
-    addressType = Other;
-    allowStructural = true;
+Address::Address() :
+    zipCode(0),
+    addressType(Other),
+    allowStructural(true) {
 }
 
 uint qHash(const Address& key) {
