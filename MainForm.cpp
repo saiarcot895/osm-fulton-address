@@ -825,7 +825,7 @@ void MainForm::validateAddresses() {
         }
     }
 
-    mergeAddressBuilding();
+    checkZipCodes();
 }
 
 void MainForm::validateBetweenAddresses() {
@@ -872,16 +872,17 @@ void MainForm::validateBetweenAddresses() {
 }
 
 void MainForm::checkZipCodes() {
-    QList<Address> addressesToCheck(existingAddresses);
-
-    for (int i = 0; i < existingAddresses.size(); i++) {
-        Address address = existingAddresses[i];
+    for (int i = 0; i < newAddresses.size(); i++) {
+        Address address = newAddresses[i];
         geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, NULL);
 
         if (zipCodePolygon == NULL || !zipCodePolygon->contains(address.coordinate.data())) {
             address.zipCode = 0;
+            newAddresses[i] = address;
         }
     }
+
+    mergeAddressBuilding();
 }
 
 void MainForm::mergeAddressBuilding() {
@@ -940,19 +941,19 @@ void MainForm::mergeNearbyAddressBuilding() {
 	// At this point, only unmerged buildings and addresses exist in the buildings
 	// and addresses list.
 	for (int i = 0; i < buildings.size(); i++) {
-        Building building = buildings.at(i);
-		double minDistance = 5;
+        const Building building = buildings.at(i);
+        double maxDistance = 10;
 		bool addressSet = false;
 		Address setAddress;
 
 		geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
 
         for (int j = 0; j < newAddresses.size(); j++) {
-            Address address = newAddresses.at(j);
+            const Address address = newAddresses.at(j);
 
 			double distance = building.getBuilding().data()->distance(address
 				.coordinate.data()) * DEGREES_TO_METERS;
-            if (distance < minDistance) {
+            if (distance < maxDistance) {
 				if (addressSet) {
 					nearbyAddressBuildings.remove(setAddress);
 				}
@@ -962,7 +963,7 @@ void MainForm::mergeNearbyAddressBuilding() {
 				// bounds.
                 if (!polygon.contains(address.coordinate.data())) {
                     nearbyAddressBuildings.insert(address, building);
-					minDistance = distance;
+                    maxDistance = distance;
 					addressSet = true;
 					setAddress = address;
                 } else {
