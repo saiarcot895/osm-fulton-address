@@ -149,6 +149,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
         Address* address = NULL;
 		uint id = 0;
 		QList<uint> nodeIndices;
+        QList<Tag> tags;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -194,6 +195,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
                                 && current == WayConfirmed) {
                             street->name = reader.attributes().value("v").toString();
                         }
+                        Tag tag(reader.attributes().value("k").toString(),
+                                reader.attributes().value("v").toString());
+                        tags.append(tag);
                     } else if (reader.name().toString() == "nd" && current == Way) {
                         nodeIndices.append(reader.attributes().value("ref").toString().toUInt());
                     }
@@ -208,10 +212,12 @@ void MainForm::readOSM(QNetworkReply* reply) {
 							Building building;
                             building.id = id;
                             building.nodeIndices = nodeIndices;
+                            building.tags = tags;
 							existingBuildings.append(building);
 							current = None;
 						}
                         nodeIndices.clear();
+                        tags.clear();
                     }
                     break;
                 default:
@@ -1075,6 +1081,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
     QXmlStreamWriter writer(&file);
     writer.setAutoFormatting(true);
     outputStartOfFile(writer);
+    writer.writeStartElement("create");
     uint id = 1;
 
     if (addresses != NULL) {
@@ -1222,6 +1229,10 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             Address address = mergedAddresses.at(i);
             Building building = mergedBuildings.at(i);
 
+            if (building.id != 0) {
+                continue;
+            }
+
             const geos::geom::CoordinateSequence* coordinates = building.building
                     .data()->getExteriorRing()->getCoordinatesRO();
             for (int j = 0; j < coordinates->size() - 1; j++) {
@@ -1342,6 +1353,141 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
         }
     }
 
+    writer.writeEndElement();
+    writer.writeStartElement("modify");
+
+    if (addressBuildings != NULL) {
+        QList<Address> mergedAddresses = addressBuildings->keys();
+        QList<Building> mergedBuildings = addressBuildings->values();
+        for (int i = 0; i < mergedBuildings.size(); i++) {
+            Address address = mergedAddresses.at(i);
+            Building building = mergedBuildings.at(i);
+
+            if (building.id == 0) {
+                continue;
+            }
+
+            const geos::geom::CoordinateSequence* coordinates = building.building
+                    .data()->getExteriorRing()->getCoordinatesRO();
+            for (int j = 0; j < coordinates->size() - 1; j++) {
+                geos::geom::Coordinate coordinate = coordinates->getAt(j);
+                writer.writeStartElement("node");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                id++;
+                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("way");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            int wayId = id;
+            id++;
+
+            for (int j = coordinates->size() - 1; j >= 1; j--) {
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+                writer.writeEndElement();
+            }
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+            writer.writeEndElement();
+
+            std::size_t numHoles = building.building.data()->getNumInteriorRing();
+            if (numHoles > 0) {
+                writer.writeEndElement();
+
+                QList<int> innerWayIds;
+
+                for (std::size_t j = 0; j < numHoles; j++) {
+                    const geos::geom::CoordinateSequence* innerCoordinates = building
+                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
+
+                    for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+                        geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+                        writer.writeStartElement("node");
+                        writer.writeAttribute("id", tr("-%1").arg(id));
+                        id++;
+                        writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                        writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                        writer.writeEndElement();
+                    }
+
+                    writer.writeStartElement("way");
+                    writer.writeAttribute("id", tr("-%1").arg(id));
+                    innerWayIds.append(id);
+                    id++;
+
+                    for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+                        writer.writeStartElement("nd");
+                        writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+                        writer.writeEndElement();
+                    }
+                    writer.writeStartElement("nd");
+                    writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+                    writer.writeEndElement();
+
+                    writer.writeEndElement();
+                }
+
+                writer.writeStartElement("relation");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                id++;
+
+                writer.writeStartElement("member");
+                writer.writeAttribute("type", "way");
+                writer.writeAttribute("ref", tr("-%1").arg(wayId));
+                writer.writeAttribute("role", "outer");
+                writer.writeEndElement();
+
+                for (int j = 0; j < innerWayIds.size(); j++) {
+                    writer.writeStartElement("member");
+                    writer.writeAttribute("type", "way");
+                    writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+                    writer.writeAttribute("role", "inner");
+                    writer.writeEndElement();
+                }
+
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "type");
+                writer.writeAttribute("v", "multipolygon");
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "building");
+            writer.writeAttribute("v", "yes");
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:housenumber");
+            writer.writeAttribute("v", address.houseNumber);
+            writer.writeEndElement();
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:street");
+            writer.writeAttribute("v", address.street.name);
+            writer.writeEndElement();
+
+            if (!address.city.isEmpty()) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:city");
+                writer.writeAttribute("v", address.city);
+                writer.writeEndElement();
+            }
+
+            if (address.zipCode != 0) {
+                writer.writeStartElement("tag");
+                writer.writeAttribute("k", "addr:postcode");
+                writer.writeAttribute("v", QString::number(address.zipCode));
+                writer.writeEndElement();
+            }
+
+            writer.writeEndElement();
+        }
+    }
+
+    writer.writeEndElement();
     outputEndOfFile(writer);
 }
 
@@ -1349,11 +1495,9 @@ void MainForm::outputStartOfFile(QXmlStreamWriter& writer) {
     writer.writeStartDocument();
     writer.writeStartElement("osmChange");
     writer.writeAttribute("version", "0.6");
-    writer.writeStartElement("create");
 }
 
 void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
-    writer.writeEndElement();
     writer.writeEndElement();
     writer.writeEndDocument();
 }
