@@ -16,13 +16,15 @@ SOURCES += main.cpp\
     Address.cpp \
     Building.cpp \
     MainForm.cpp \
-    Street.cpp
+    Street.cpp \
+    tag.cpp
 
 HEADERS  += \
     Address.h \
     Building.h \
     MainForm.h \
-    Street.h
+    Street.h \
+    tag.h
 
 FORMS += \
     MainForm.ui
