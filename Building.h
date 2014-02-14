@@ -8,7 +8,8 @@
 #ifndef BUILDING_H
 #define	BUILDING_H
 
-#include "QSharedPointer"
+#include "tag.h"
+#include <QSharedPointer>
 #include <geos/geom/Polygon.h>
 
 class Building {
@@ -16,25 +17,14 @@ public:
     Building();
     Building(const Building& orig);
 
-	uint getId() const;
-    int getYear() const;
-    QString getFeatureID() const;
-    QSharedPointer<geos::geom::Polygon> getBuilding() const;
-	QList<uint> getNodeIndices() const;
-
-	void setId(uint id);
-    void setYear(int year);
-    void setFeatureID(QString featureID);
-    void setBuilding(QSharedPointer<geos::geom::Polygon> building);
-	void setNodeIndices(QList<uint> nodeIndices);
-
-    virtual ~Building();
-private:
-	uint id;
+    uint id;
     int year;
     QString featureID;
     QSharedPointer<geos::geom::Polygon> building;
-	QList<uint> nodeIndices;
+    QList<uint> nodeIndices;
+    QList<Tag> tags;
+
+    virtual ~Building();
 };
 
 uint qHash(const Building& key);

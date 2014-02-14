@@ -206,8 +206,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
 							street = NULL;
 						} else if (current == BuildingConfirmed) {
 							Building building;
-							building.setId(id);
-							building.setNodeIndices(nodeIndices);
+                            building.id = id;
+                            building.nodeIndices = nodeIndices;
 							existingBuildings.append(building);
 							current = None;
 						}
@@ -236,15 +236,15 @@ void MainForm::readOSM(QNetworkReply* reply) {
 			geos::geom::CoordinateSequence* nodePoints = factory
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
-            for (int j = 0; j < building.getNodeIndices().size(); j++) {
-				geos::geom::Coordinate coord = *(nodes.value(building.getNodeIndices().at(j))
+            for (int j = 0; j < building.nodeIndices.size(); j++) {
+                geos::geom::Coordinate coord = *(nodes.value(building.nodeIndices.at(j))
 						->getCoordinate());
                 nodePoints->add(coord);
             }
 			try {
 				geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
-				building.setBuilding(QSharedPointer<geos::geom::Polygon>(factory
-						->createPolygon(ring, NULL)));
+                building.building = QSharedPointer<geos::geom::Polygon>(factory
+                        ->createPolygon(ring, NULL));
 				existingBuildings.replace(i, building);
 			} catch (...) {
 				qDebug() << "Building skipped";
@@ -508,10 +508,10 @@ void MainForm::readBuildingFile() {
 					if (!skip && !skip1) {
 						geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
 						Building building;
-						building.setFeatureID(featureId);
-						building.setYear(year);
-						building.setBuilding(QSharedPointer<geos::geom::Polygon>
-							(factory->createPolygon(ring, NULL)));
+                        building.featureID = featureId;
+                        building.year = year;
+                        building.building = QSharedPointer<geos::geom::Polygon>
+                            (factory->createPolygon(ring, NULL));
 						buildings.append(building);
 					}
 
@@ -537,10 +537,10 @@ void MainForm::readBuildingFile() {
 
 					if (!skip) {
 						Building building;
-						building.setFeatureID(featureId);
-						building.setYear(year);
-						building.setBuilding(QSharedPointer<geos::geom::Polygon>
-							(factory->createPolygon(*outerRing, innerHoles)));
+                        building.featureID = featureId;
+                        building.year = year;
+                        building.building = QSharedPointer<geos::geom::Polygon>
+                            (factory->createPolygon(*outerRing, innerHoles));
 						buildings.append(building);
 					}
 
@@ -577,14 +577,14 @@ void MainForm::validateBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
         Building building1 = buildings.at(i);
 
-        geos::geom::prep::PreparedPolygon polygon(building1.getBuilding().data());
+        geos::geom::prep::PreparedPolygon polygon(building1.building.data());
         for (int j = i + 1; j < buildings.size(); j++) {
             Building building2 = buildings.at(j);
 
-            if (polygon.intersects(building2.getBuilding().data())) {
-                if (building1.getYear() >= building2.getYear()) {
+            if (polygon.intersects(building2.building.data())) {
+                if (building1.year >= building2.year) {
                     if (widget->checkBox_9->isChecked()) {
-                        const geos::geom::Coordinate* centroid = building2.getBuilding()
+                        const geos::geom::Coordinate* centroid = building2.building
                                 .data()->getCentroid()->getCoordinate();
                         widget->textBrowser->append(tr("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x));
@@ -593,7 +593,7 @@ void MainForm::validateBuildings() {
                     j--;
                 } else {
                     if (widget->checkBox_9->isChecked()) {
-                        const geos::geom::Coordinate* centroid = building1.getBuilding()
+                        const geos::geom::Coordinate* centroid = building1.building
                                 .data()->getCentroid()->getCoordinate();
                         widget->textBrowser->append(tr("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x));
@@ -613,12 +613,12 @@ void MainForm::removeIntersectingBuildings() {
 	for (int i = 0; i < existingBuildings.size(); i++) {
 		Building existingBuilding = existingBuildings.at(i);
 
-		geos::geom::prep::PreparedPolygon polygon(existingBuilding.getBuilding()
+        geos::geom::prep::PreparedPolygon polygon(existingBuilding.building
 				.data());
 		for (int j = 0; j < buildings.size(); j++) {
 			Building building = buildings.at(j);
 
-			if (polygon.intersects(building.getBuilding().data())) {
+            if (polygon.intersects(building.building.data())) {
 				buildings.removeAt(j);
 				j--;
 			}
@@ -631,7 +631,7 @@ void MainForm::removeIntersectingBuildings() {
 void MainForm::simplifyBuildings() {
     for (int i = 0; i < buildings.size(); i++) {
         Building building = buildings[i];
-        geos::geom::Polygon* polygon = building.getBuilding().data();
+        geos::geom::Polygon* polygon = building.building.data();
 
         if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 5) {
             buildings.removeAt(i);
@@ -677,7 +677,7 @@ void MainForm::simplifyBuildings() {
 			innerHoles->push_back(polygon->getInteriorRingN(j)->clone());
 		}
         geos::geom::Polygon* newPolygon = factory->createPolygon(newLinearRing, innerHoles);
-        building.setBuilding(QSharedPointer<geos::geom::Polygon>(newPolygon));
+        building.building = QSharedPointer<geos::geom::Polygon>(newPolygon);
 		buildings[i] = building;
     }
 
@@ -891,8 +891,6 @@ void MainForm::checkZipCodes() {
         Address address = newAddresses[i];
         geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, NULL);
 
-        qDebug() << zipCodePolygon->getNumInteriorRing();
-
         if (zipCodePolygon == NULL || !zipCodePolygon->contains(address.coordinate.data())) {
             if (widget->checkBox_11->isChecked()) {
                 widget->textBrowser->append(tr("%1 %2, %3").arg(address.houseNumber)
@@ -916,7 +914,7 @@ void MainForm::mergeAddressBuilding() {
         Building building = buildings.at(i);
         bool addressSet = false;
 
-        geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
+        geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
         for (int j = 0; j < newAddresses.size(); j++) {
             Address address = newAddresses.at(j);
@@ -967,12 +965,12 @@ void MainForm::mergeNearbyAddressBuilding() {
 		bool addressSet = false;
 		Address setAddress;
 
-		geos::geom::prep::PreparedPolygon polygon(building.getBuilding().data());
+        geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
         for (int j = 0; j < newAddresses.size(); j++) {
             const Address address = newAddresses.at(j);
 
-			double distance = building.getBuilding().data()->distance(address
+            double distance = building.building.data()->distance(address
 				.coordinate.data()) * DEGREES_TO_METERS;
             if (distance < maxDistance) {
 				if (addressSet) {
@@ -1121,7 +1119,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
         for (int i = 0; i < buildings->size(); i++) {
             Building building = buildings->at(i);
 
-            const geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+            const geos::geom::CoordinateSequence* coordinates = building.building
                     .data()->getExteriorRing()->getCoordinatesRO();
             for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
                 geos::geom::Coordinate coordinate = coordinates->getAt(j);
@@ -1147,7 +1145,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
             writer.writeEndElement();
 
-			std::size_t numHoles = building.getBuilding().data()->getNumInteriorRing();
+            std::size_t numHoles = building.building.data()->getNumInteriorRing();
 			if (numHoles > 0) {
 				writer.writeEndElement();
 
@@ -1155,7 +1153,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
 
 				for (std::size_t j = 0; j < numHoles; j++) {
 					const geos::geom::CoordinateSequence* innerCoordinates = building
-						.getBuilding().data()->getInteriorRingN(j)->getCoordinatesRO();
+                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
 
 					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
 						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
@@ -1224,7 +1222,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             Address address = mergedAddresses.at(i);
             Building building = mergedBuildings.at(i);
 
-            const geos::geom::CoordinateSequence* coordinates = building.getBuilding()
+            const geos::geom::CoordinateSequence* coordinates = building.building
                     .data()->getExteriorRing()->getCoordinatesRO();
             for (int j = 0; j < coordinates->size() - 1; j++) {
                 geos::geom::Coordinate coordinate = coordinates->getAt(j);
@@ -1250,7 +1248,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
             writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
             writer.writeEndElement();
 
-			std::size_t numHoles = building.getBuilding().data()->getNumInteriorRing();
+            std::size_t numHoles = building.building.data()->getNumInteriorRing();
 			if (numHoles > 0) {
 				writer.writeEndElement();
 
@@ -1258,7 +1256,7 @@ void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
 
 				for (std::size_t j = 0; j < numHoles; j++) {
 					const geos::geom::CoordinateSequence* innerCoordinates = building
-						.getBuilding().data()->getInteriorRingN(j)->getCoordinatesRO();
+                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
 
 					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
 						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
