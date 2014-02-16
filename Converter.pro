@@ -18,7 +18,6 @@ SOURCES += main.cpp\
     Building.cpp \
     MainForm.cpp \
     Street.cpp \
-    tag.cpp \
     node.cpp
 
 HEADERS  += \
@@ -26,7 +25,6 @@ HEADERS  += \
     Building.h \
     MainForm.h \
     Street.h \
-    tag.h \
     node.h
 
 FORMS += \

@@ -150,7 +150,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
 		uint id = 0;
         int version = -1;
 		QList<uint> nodeIndices;
-        QList<Tag> tags;
+        QMap<QString, QString> tags;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -200,9 +200,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
                                 && current == WayConfirmed) {
                             street->name = reader.attributes().value("v").toString();
                         }
-                        Tag tag(reader.attributes().value("k").toString(),
-                                reader.attributes().value("v").toString());
-                        tags.append(tag);
+                        tags.insert(reader.attributes().value("k").toString(),
+                                    reader.attributes().value("v").toString());
                     } else if (reader.name().toString() == "nd" && current == Way) {
                         nodeIndices.append(reader.attributes().value("ref").toString().toUInt());
                     }
@@ -453,6 +452,7 @@ void MainForm::readBuildingFile() {
 	QString featureId;
 	bool skip1 = true;
 	int year;
+    QMap<QString, QString> tags;
     geos::geom::CoordinateSequence* baseSequence = NULL;
     QList<geos::geom::Geometry*> holes;
     QList<geos::geom::Coordinate> coordinates;
@@ -498,7 +498,36 @@ void MainForm::readBuildingFile() {
 						skip1 = false;
 					} else if (reader.attributes().value("k").toString() == "YearBuilt") {
 						year = reader.attributes().value("v").toString().toInt();
-					}
+                    } else if (reader.attributes().value("k").toString() == "FeatType") {
+                        tags.insert("-featureType", reader.attributes().value("v").toString());
+                    } else if (reader.attributes().value("k").toString() == "LUCDesc") {
+                        if (reader.attributes().value("v").toString() == "Churches, Synogogue, Mosque") {
+                            tags.insert("amenity", "place_of_worship");
+                        } else if (reader.attributes().value("v").toString() == "Radio, TV or Motion Picture Studio") {
+                            tags.insert("amenity", "studio");
+                        } else if (reader.attributes().value("v").toString() == "Hospital") {
+                            tags.insert("amenity", "hospital");
+                        } else if (reader.attributes().value("v").toString() == "Parking Garage/Deck"
+                                   || reader.attributes().value("v").toString() == "Parking Lot (Paved)") {
+                            tags.insert("amenity", "parking");
+                        } else if (reader.attributes().value("v").toString() == "Library") {
+                            tags.insert("amenity", "library");
+                        } else if (reader.attributes().value("v").contains("Office Bldg")) {
+                            tags.insert("building", "commercial");
+                        } else if (tags.value("-featureType") == "Residential"
+                                   && reader.attributes().value("v").contains("Residential")) {
+                            tags.insert("building", "house");
+                        } else if (reader.attributes().value("v").startsWith("Apt")
+                                   && !reader.attributes().value("v").contains("Garden")
+                                   && !reader.attributes().value("v").contains("Retail")) {
+                            tags.insert("building", "apartments");
+                        } else if (reader.attributes().value("v").startsWith("Retail")
+                                   || reader.attributes().value("v").contains("Shopping")) {
+                            tags.insert("building", "retail");
+                        } else {
+                            qDebug() << "Description:" << reader.attributes().value("v").toString();
+                        }
+                    }
                 }
                 break;
             case QXmlStreamReader::EndElement:
@@ -522,12 +551,14 @@ void MainForm::readBuildingFile() {
 						Building building;
                         building.featureID = featureId;
                         building.year = year;
+                        building.tags = tags;
                         building.building = QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(ring, NULL));
 						buildings.append(building);
 					}
 
 					skip1 = true;
+                    tags.clear();
 
                     buildingWays.insert(wayId, factory->createLineString(sequence));
                     coordinates.clear();
@@ -551,6 +582,7 @@ void MainForm::readBuildingFile() {
 						Building building;
                         building.featureID = featureId;
                         building.year = year;
+                        building.tags = tags;
                         building.building = QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(*outerRing, innerHoles));
 						buildings.append(building);
@@ -559,6 +591,7 @@ void MainForm::readBuildingFile() {
 					delete outerRing;
                     baseSequence = NULL;
                     holes.clear();
+                    tags.clear();
                 }
                 break;
             default:
@@ -930,9 +963,9 @@ void MainForm::mergeAddressBuilding() {
         Address setAddress;
 
         bool unaddressedBuilding = true;
-        for (int j = 0; j < building.tags.size(); ++j) {
-            Tag tag = building.tags.at(j);
-            if (tag.key.startsWith("addr:")) {
+        QList<QString> keys = building.tags.keys();
+        for (int j = 0; j < keys.size(); ++j) {
+            if (keys.at(j).startsWith("addr:")) {
                 unaddressedBuilding = false;
                 break;
             }
@@ -1238,10 +1271,23 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
             writer.writeEndElement();
         }
 
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "building");
-        writer.writeAttribute("v", "yes");
-        writer.writeEndElement();
+        QList<QString> keys = building.tags.keys();
+        for (int j = 0; j < building.tags.size(); ++j) {
+            if (keys.at(j).startsWith("-")) {
+                continue;
+            }
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", keys.at(j));
+            writer.writeAttribute("v", building.tags.value(keys.at(j)));
+            writer.writeEndElement();
+        }
+
+        if (!building.tags.contains("building")) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "building");
+            writer.writeAttribute("v", "yes");
+            writer.writeEndElement();
+        }
 
         writer.writeEndElement();
     }
@@ -1343,10 +1389,23 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
             writer.writeEndElement();
         }
 
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "building");
-        writer.writeAttribute("v", "yes");
-        writer.writeEndElement();
+        QList<QString> keys = building.tags.keys();
+        for (int j = 0; j < building.tags.size(); ++j) {
+            if (keys.at(j).startsWith("-")) {
+                continue;
+            }
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", keys.at(j));
+            writer.writeAttribute("v", building.tags.value(keys.at(j)));
+            writer.writeEndElement();
+        }
+
+        if (!building.tags.contains("building")) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "building");
+            writer.writeAttribute("v", "yes");
+            writer.writeEndElement();
+        }
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:housenumber");
@@ -1408,11 +1467,11 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
             writer.writeEndElement();
         }
 
+        QList<QString> keys = building.tags.keys();
         for (int j = 0; j < building.tags.size(); ++j) {
-            Tag tag = building.tags.at(j);
             writer.writeStartElement("tag");
-            writer.writeAttribute("k", tag.key);
-            writer.writeAttribute("v", tag.value);
+            writer.writeAttribute("k", keys.at(j));
+            writer.writeAttribute("v", building.tags.value(keys.at(j)));
             writer.writeEndElement();
         }
 

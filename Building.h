@@ -8,8 +8,8 @@
 #ifndef BUILDING_H
 #define	BUILDING_H
 
-#include "tag.h"
 #include <QSharedPointer>
+#include <QMap>
 #include <geos/geom/Polygon.h>
 
 class Building {
@@ -23,7 +23,7 @@ public:
     QString featureID;
     QSharedPointer<geos::geom::Polygon> building;
     QList<uint> nodeIndices;
-    QList<Tag> tags;
+    QMap<QString, QString> tags;
 
     virtual ~Building();
 };
