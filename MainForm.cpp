@@ -919,6 +919,7 @@ void MainForm::mergeAddressBuilding() {
     for (int i = 0; i < buildings.size(); i++) {
         Building building = buildings.at(i);
         bool addressSet = false;
+        Address setAddress;
 
         geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
@@ -927,13 +928,17 @@ void MainForm::mergeAddressBuilding() {
 
             if (polygon.contains(address.coordinate.data())) {
                 if (!addressSet) {
-                    addressBuildings.insert(address, building);
+                    setAddress = address;
                     addressSet = true;
                 } else {
-                    addressBuildings.remove(addressBuildings.key(building));
+                    addressSet = false;
                     break;
                 }
             }
+        }
+
+        if (addressSet) {
+            addressBuildings.insert(setAddress, building);
         }
     }
 
