@@ -18,14 +18,16 @@ SOURCES += main.cpp\
     Building.cpp \
     MainForm.cpp \
     Street.cpp \
-    tag.cpp
+    tag.cpp \
+    node.cpp
 
 HEADERS  += \
     Address.h \
     Building.h \
     MainForm.h \
     Street.h \
-    tag.h
+    tag.h \
+    node.h
 
 FORMS += \
     MainForm.ui

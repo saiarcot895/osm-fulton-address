@@ -18,6 +18,7 @@ public:
     Building(const Building& orig);
 
     uint id;
+    int version;
     int year;
     QString featureID;
     QSharedPointer<geos::geom::Polygon> building;

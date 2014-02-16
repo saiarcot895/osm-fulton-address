@@ -13,6 +13,7 @@
 #include "Street.h"
 #include "Address.h"
 #include "Building.h"
+#include "node.h"
 #include <geos/geom/GeometryFactory.h>
 #include <QMainWindow>
 #include "QtNetwork/QNetworkAccessManager"
@@ -41,7 +42,7 @@ private:
     Ui::mainForm* widget;
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
-    QHash<uint, geos::geom::Point*> nodes;
+    QHash<uint, Node> nodes;
     QHash<int, geos::geom::Polygon*> zipCodes;
     QHash<QString, Street*> streets;
 	QList<Building> existingBuildings;
@@ -52,7 +53,7 @@ private:
     QHash<Address, Building> addressBuildings;
     enum FeatureType {
         None = 0,
-        Node,
+        NodePoint,
         Way,
         WayConfirmed,
 		BuildingConfirmed,

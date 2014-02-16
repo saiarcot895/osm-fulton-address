@@ -148,6 +148,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
         Street* street = NULL;
         Address* address = NULL;
 		uint id = 0;
+        int version = -1;
 		QList<uint> nodeIndices;
         QList<Tag> tags;
         FeatureType current = None;
@@ -157,17 +158,21 @@ void MainForm::readOSM(QNetworkReply* reply) {
                 case QXmlStreamReader::StartElement:
                     if (reader.name().toString() == "node") {
                         // Store all nodes
+                        Node node;
                         geos::geom::Coordinate coordinate;
-                        uint nodeId = reader.attributes().value("id").toString().toUInt();
+                        node.id = reader.attributes().value("id").toString().toUInt();
+                        node.version = reader.attributes().value("version").toString().toInt();
                         coordinate.y = reader.attributes().value("lat").toString().toDouble();
                         coordinate.x = reader.attributes().value("lon").toString().toDouble();
-                        nodes.insert(nodeId, factory->createPoint(coordinate));
+                        node.point = QSharedPointer<geos::geom::Point>(factory->createPoint(coordinate));
+                        nodes.insert(node.id, node);
                     } else if (reader.name().toString() == "way") {
                         // A way is typically either be a road or a building. For
                         // now, assume it is a road, since we need the nodes and
                         // those come before the way tags
                         current = Way;
 						id = reader.attributes().value("id").toString().toUInt();
+                        version = reader.attributes().value("version").toString().toInt();
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
                             delete address;
@@ -211,6 +216,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
 						} else if (current == BuildingConfirmed) {
 							Building building;
                             building.id = id;
+                            building.version = version;
                             building.nodeIndices = nodeIndices;
                             building.tags = tags;
 							existingBuildings.append(building);
@@ -232,7 +238,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < street->nodeIndices.size(); j++) {
-                nodePoints->add(*(nodes.value(street->nodeIndices.at(j))->getCoordinate()));
+                nodePoints->add(*(nodes.value(street->nodeIndices.at(j)).point.data()->getCoordinate()));
             }
             street->path = QSharedPointer<geos::geom::LineString>(factory->createLineString(nodePoints));
         }
@@ -244,7 +250,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < building.nodeIndices.size(); j++) {
                 geos::geom::Coordinate coord = *(nodes.value(building.nodeIndices.at(j))
-						->getCoordinate());
+                        .point.data()->getCoordinate());
                 nodePoints->add(coord);
             }
 			try {
@@ -916,10 +922,24 @@ void MainForm::mergeAddressBuilding() {
         widget->textBrowser->append("Addresses merged into buildings");
     }
 
-    for (int i = 0; i < buildings.size(); i++) {
-        Building building = buildings.at(i);
+    for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
+        Building building = i < buildings.size()
+                ? buildings.at(i)
+                : existingBuildings.at(i - buildings.size());
         bool addressSet = false;
         Address setAddress;
+
+        bool unaddressedBuilding = true;
+        for (int j = 0; j < building.tags.size(); ++j) {
+            Tag tag = building.tags.at(j);
+            if (tag.key.startsWith("addr:")) {
+                unaddressedBuilding = false;
+                break;
+            }
+        }
+        if (!unaddressedBuilding) {
+            continue;
+        }
 
         geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
@@ -955,6 +975,7 @@ void MainForm::mergeAddressBuilding() {
     QList<Building> mergedBuildings = addressBuildings.values();
     for (int i = 0; i < mergedBuildings.size(); i++) {
         buildings.removeOne(mergedBuildings.at(i));
+        existingBuildings.removeOne(mergedBuildings.at(i));
     }
 
 	mergeNearbyAddressBuilding();
@@ -970,8 +991,10 @@ void MainForm::mergeNearbyAddressBuilding() {
 
 	// At this point, only unmerged buildings and addresses exist in the buildings
 	// and addresses list.
-	for (int i = 0; i < buildings.size(); i++) {
-        const Building building = buildings.at(i);
+    for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
+        Building building = i < buildings.size()
+                ? buildings.at(i)
+                : existingBuildings.at(i - buildings.size());
         double maxDistance = 10;
 		bool addressSet = false;
 		Address setAddress;
@@ -1368,92 +1391,30 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
         for (int j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
-            writer.writeAttribute("id", tr("-%1").arg(id));
-            id++;
+            writer.writeAttribute("id", tr("%1").arg(building.nodeIndices.at(j)));
+            writer.writeAttribute("version", tr("%1").arg(nodes.value(building.nodeIndices.at(j)).version));
             writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
             writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
             writer.writeEndElement();
         }
 
         writer.writeStartElement("way");
-        writer.writeAttribute("id", tr("-%1").arg(id));
-        int wayId = id;
-        id++;
+        writer.writeAttribute("id", tr("%1").arg(building.id));
+        writer.writeAttribute("version", tr("%1").arg(building.version + 1));
 
-        for (int j = coordinates->size() - 1; j >= 1; j--) {
+        for (int j = 0; j < building.nodeIndices.size(); j++) {
             writer.writeStartElement("nd");
-            writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+            writer.writeAttribute("ref", tr("%1").arg(building.nodeIndices.at(j)));
             writer.writeEndElement();
         }
-        writer.writeStartElement("nd");
-        writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
-        writer.writeEndElement();
 
-        std::size_t numHoles = building.building.data()->getNumInteriorRing();
-        if (numHoles > 0) {
-            writer.writeEndElement();
-
-            QList<int> innerWayIds;
-
-            for (std::size_t j = 0; j < numHoles; j++) {
-                const geos::geom::CoordinateSequence* innerCoordinates = building
-                    .building.data()->getInteriorRingN(j)->getCoordinatesRO();
-
-                for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
-                    geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
-                    writer.writeStartElement("node");
-                    writer.writeAttribute("id", tr("-%1").arg(id));
-                    id++;
-                    writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-                    writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-                    writer.writeEndElement();
-                }
-
-                writer.writeStartElement("way");
-                writer.writeAttribute("id", tr("-%1").arg(id));
-                innerWayIds.append(id);
-                id++;
-
-                for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
-                    writer.writeStartElement("nd");
-                    writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
-                    writer.writeEndElement();
-                }
-                writer.writeStartElement("nd");
-                writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
-                writer.writeEndElement();
-
-                writer.writeEndElement();
-            }
-
-            writer.writeStartElement("relation");
-            writer.writeAttribute("id", tr("-%1").arg(id));
-            id++;
-
-            writer.writeStartElement("member");
-            writer.writeAttribute("type", "way");
-            writer.writeAttribute("ref", tr("-%1").arg(wayId));
-            writer.writeAttribute("role", "outer");
-            writer.writeEndElement();
-
-            for (int j = 0; j < innerWayIds.size(); j++) {
-                writer.writeStartElement("member");
-                writer.writeAttribute("type", "way");
-                writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
-                writer.writeAttribute("role", "inner");
-                writer.writeEndElement();
-            }
-
+        for (int j = 0; j < building.tags.size(); ++j) {
+            Tag tag = building.tags.at(j);
             writer.writeStartElement("tag");
-            writer.writeAttribute("k", "type");
-            writer.writeAttribute("v", "multipolygon");
+            writer.writeAttribute("k", tag.key);
+            writer.writeAttribute("v", tag.value);
             writer.writeEndElement();
         }
-
-        writer.writeStartElement("tag");
-        writer.writeAttribute("k", "building");
-        writer.writeAttribute("v", "yes");
-        writer.writeEndElement();
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:housenumber");
@@ -1498,11 +1459,6 @@ void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
 }
 
 void MainForm::cleanup() {
-    QList<geos::geom::Point*> pointValues = nodes.values();
-    for (int i = 0; i < pointValues.size(); i++) {
-        geos::geom::Point* point = pointValues.at(i);
-        delete point;
-    }
     nodes.clear();
     QList<Street*> streetValues = streets.values();
     for (int i = 0; i < streetValues.size(); i++) {

@@ -10,15 +10,17 @@
 
 Building::Building() :
     id(0),
+    version(-1),
     year(0)
 {
 }
 
 Building::Building(const Building& orig) {
+    id = orig.id;
+    version = orig.version;
     year = orig.year;
+    featureID = orig.featureID;
     building = orig.building;
-	id = orig.id;
-	featureID = orig.featureID;
 	nodeIndices = orig.nodeIndices;
     tags = orig.tags;
 }
