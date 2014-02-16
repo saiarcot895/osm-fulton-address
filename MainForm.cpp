@@ -1027,7 +1027,7 @@ void MainForm::outputChangeFile() {
     QString fullFileName = widget->lineEdit_2->text();
     QFile file(fullFileName);
     if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        writeXMLFile(file, &newAddresses, &buildings, &addressBuildings);
+        writeXMLFile(file, newAddresses, buildings, addressBuildings);
     }
 
     for (int i = 0; i <= excludedAddresses.size() / 5000; i++) {
@@ -1060,7 +1060,7 @@ void MainForm::outputChangeFile() {
             continue;
         }
 
-        writeXMLFile(file, &excludedAddresses, NULL, NULL);
+        writeXMLFile(file, excludedAddresses, QList<Building>(), QHash<Address, Building>());
     }
 
     // Output the log to a file
@@ -1076,415 +1076,405 @@ void MainForm::outputChangeFile() {
     cleanup();
 }
 
-void MainForm::writeXMLFile(QFile& file, QList<Address>* addresses,
-        QList<Building>* buildings, QHash<Address, Building>* addressBuildings) {
+void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
+        const QList<Building> buildings, const QHash<Address, Building> addressBuildings) {
     QXmlStreamWriter writer(&file);
     writer.setAutoFormatting(true);
     outputStartOfFile(writer);
     writer.writeStartElement("create");
     uint id = 1;
 
-    if (addresses != NULL) {
-        for (int i = 0; i < addresses->size(); i++) {
-            Address address = addresses->at(i);
+    for (int i = 0; i < addresses.size(); i++) {
+        Address address = addresses.at(i);
 
+        writer.writeStartElement("node");
+        writer.writeAttribute("id", tr("-%1").arg(id));
+        id++;
+        writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
+        writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:housenumber");
+        writer.writeAttribute("v", address.houseNumber);
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:street");
+        writer.writeAttribute("v", address.street.name);
+        writer.writeEndElement();
+
+        if (!address.city.isEmpty()) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:city");
+            writer.writeAttribute("v", address.city);
+            writer.writeEndElement();
+        }
+
+        if (address.zipCode != 0) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:postcode");
+            writer.writeAttribute("v", QString::number(address.zipCode));
+            writer.writeEndElement();
+        }
+
+        writer.writeEndElement();
+    }
+
+    for (int i = 0; i < buildings.size(); i++) {
+        Building building = buildings.at(i);
+
+        const geos::geom::CoordinateSequence* coordinates = building.building
+                .data()->getExteriorRing()->getCoordinatesRO();
+        for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
+            geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(id));
             id++;
-            writer.writeAttribute("lat", QString::number(address.coordinate.data()->getY(), 'g', 12));
-            writer.writeAttribute("lon", QString::number(address.coordinate.data()->getX(), 'g', 12));
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:housenumber");
-            writer.writeAttribute("v", address.houseNumber);
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:street");
-            writer.writeAttribute("v", address.street.name);
-            writer.writeEndElement();
-
-            if (!address.city.isEmpty()) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:city");
-                writer.writeAttribute("v", address.city);
-                writer.writeEndElement();
-            }
-
-            if (address.zipCode != 0) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:postcode");
-                writer.writeAttribute("v", QString::number(address.zipCode));
-                writer.writeEndElement();
-            }
-
+            writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+            writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
             writer.writeEndElement();
         }
-    }
 
-    if (buildings != NULL) {
-        for (int i = 0; i < buildings->size(); i++) {
-            Building building = buildings->at(i);
+        writer.writeStartElement("way");
+        writer.writeAttribute("id", tr("-%1").arg(id));
+        int wayId = id;
+        id++;
 
-            const geos::geom::CoordinateSequence* coordinates = building.building
-                    .data()->getExteriorRing()->getCoordinatesRO();
-            for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
-                geos::geom::Coordinate coordinate = coordinates->getAt(j);
-                writer.writeStartElement("node");
+        for (int j = coordinates->size() - 1; j >= 1; j--) {
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+            writer.writeEndElement();
+        }
+        writer.writeStartElement("nd");
+        writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+        writer.writeEndElement();
+
+        std::size_t numHoles = building.building.data()->getNumInteriorRing();
+        if (numHoles > 0) {
+            writer.writeEndElement();
+
+            QList<int> innerWayIds;
+
+            for (std::size_t j = 0; j < numHoles; j++) {
+                const geos::geom::CoordinateSequence* innerCoordinates = building
+                    .building.data()->getInteriorRingN(j)->getCoordinatesRO();
+
+                for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+                    geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+                    writer.writeStartElement("node");
+                    writer.writeAttribute("id", tr("-%1").arg(id));
+                    id++;
+                    writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                    writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                    writer.writeEndElement();
+                }
+
+                writer.writeStartElement("way");
                 writer.writeAttribute("id", tr("-%1").arg(id));
+                innerWayIds.append(id);
                 id++;
-                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+
+                for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+                    writer.writeStartElement("nd");
+                    writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+                    writer.writeEndElement();
+                }
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+                writer.writeEndElement();
+
                 writer.writeEndElement();
             }
 
-            writer.writeStartElement("way");
+            writer.writeStartElement("relation");
             writer.writeAttribute("id", tr("-%1").arg(id));
-			int wayId = id;
             id++;
 
-            for (int j = coordinates->size() - 1; j >= 1; j--) {
-                writer.writeStartElement("nd");
-                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
-                writer.writeEndElement();
-            }
-            writer.writeStartElement("nd");
-            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+            writer.writeStartElement("member");
+            writer.writeAttribute("type", "way");
+            writer.writeAttribute("ref", tr("-%1").arg(wayId));
+            writer.writeAttribute("role", "outer");
             writer.writeEndElement();
 
-            std::size_t numHoles = building.building.data()->getNumInteriorRing();
-			if (numHoles > 0) {
-				writer.writeEndElement();
+            for (int j = 0; j < innerWayIds.size(); j++) {
+                writer.writeStartElement("member");
+                writer.writeAttribute("type", "way");
+                writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+                writer.writeAttribute("role", "inner");
+                writer.writeEndElement();
+            }
 
-				QList<int> innerWayIds;
-
-				for (std::size_t j = 0; j < numHoles; j++) {
-					const geos::geom::CoordinateSequence* innerCoordinates = building
-                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
-
-					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
-						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
-						writer.writeStartElement("node");
-						writer.writeAttribute("id", tr("-%1").arg(id));
-						id++;
-						writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-						writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-						writer.writeEndElement();
-					}
-
-					writer.writeStartElement("way");
-					writer.writeAttribute("id", tr("-%1").arg(id));
-					innerWayIds.append(id);
-					id++;
-
-					for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
-						writer.writeStartElement("nd");
-						writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
-						writer.writeEndElement();
-					}
-					writer.writeStartElement("nd");
-					writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
-					writer.writeEndElement();
-
-					writer.writeEndElement();
-				}
-
-				writer.writeStartElement("relation");
-				writer.writeAttribute("id", tr("-%1").arg(id));
-				id++;
-
-				writer.writeStartElement("member");
-				writer.writeAttribute("type", "way");
-				writer.writeAttribute("ref", tr("-%1").arg(wayId));
-				writer.writeAttribute("role", "outer");
-				writer.writeEndElement();
-
-				for (int j = 0; j < innerWayIds.size(); j++) {
-					writer.writeStartElement("member");
-					writer.writeAttribute("type", "way");
-					writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
-					writer.writeAttribute("role", "inner");
-					writer.writeEndElement();
-				}
-
-				writer.writeStartElement("tag");
-				writer.writeAttribute("k", "type");
-				writer.writeAttribute("v", "multipolygon");
-				writer.writeEndElement();
-			}
-
-			writer.writeStartElement("tag");
-			writer.writeAttribute("k", "building");
-			writer.writeAttribute("v", "yes");
-			writer.writeEndElement();
-
-			writer.writeEndElement();
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "type");
+            writer.writeAttribute("v", "multipolygon");
+            writer.writeEndElement();
         }
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "building");
+        writer.writeAttribute("v", "yes");
+        writer.writeEndElement();
+
+        writer.writeEndElement();
     }
 
-    if (addressBuildings != NULL) {
-        QList<Address> mergedAddresses = addressBuildings->keys();
-        QList<Building> mergedBuildings = addressBuildings->values();
-        for (int i = 0; i < mergedBuildings.size(); i++) {
-            Address address = mergedAddresses.at(i);
-            Building building = mergedBuildings.at(i);
+    QList<Address> mergedAddresses = addressBuildings.keys();
+    QList<Building> mergedBuildings = addressBuildings.values();
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        Address address = mergedAddresses.at(i);
+        Building building = mergedBuildings.at(i);
 
-            if (building.id != 0) {
-                continue;
-            }
+        if (building.id != 0) {
+            continue;
+        }
 
-            const geos::geom::CoordinateSequence* coordinates = building.building
-                    .data()->getExteriorRing()->getCoordinatesRO();
-            for (int j = 0; j < coordinates->size() - 1; j++) {
-                geos::geom::Coordinate coordinate = coordinates->getAt(j);
-                writer.writeStartElement("node");
-                writer.writeAttribute("id", tr("-%1").arg(id));
-                id++;
-                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-                writer.writeEndElement();
-            }
-
-            writer.writeStartElement("way");
+        const geos::geom::CoordinateSequence* coordinates = building.building
+                .data()->getExteriorRing()->getCoordinatesRO();
+        for (int j = 0; j < coordinates->size() - 1; j++) {
+            geos::geom::Coordinate coordinate = coordinates->getAt(j);
+            writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(id));
-			int wayId = id;
             id++;
-
-            for (int j = coordinates->size() - 1; j >= 1; j--) {
-                writer.writeStartElement("nd");
-                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
-                writer.writeEndElement();
-            }
-            writer.writeStartElement("nd");
-            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
-            writer.writeEndElement();
-
-            std::size_t numHoles = building.building.data()->getNumInteriorRing();
-			if (numHoles > 0) {
-				writer.writeEndElement();
-
-				QList<int> innerWayIds;
-
-				for (std::size_t j = 0; j < numHoles; j++) {
-					const geos::geom::CoordinateSequence* innerCoordinates = building
-                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
-
-					for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
-						geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
-						writer.writeStartElement("node");
-						writer.writeAttribute("id", tr("-%1").arg(id));
-						id++;
-						writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-						writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-						writer.writeEndElement();
-					}
-
-					writer.writeStartElement("way");
-					writer.writeAttribute("id", tr("-%1").arg(id));
-					innerWayIds.append(id);
-					id++;
-
-					for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
-						writer.writeStartElement("nd");
-						writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
-						writer.writeEndElement();
-					}
-					writer.writeStartElement("nd");
-					writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
-					writer.writeEndElement();
-
-					writer.writeEndElement();
-				}
-
-				writer.writeStartElement("relation");
-				writer.writeAttribute("id", tr("-%1").arg(id));
-				id++;
-
-				writer.writeStartElement("member");
-				writer.writeAttribute("type", "way");
-				writer.writeAttribute("ref", tr("-%1").arg(wayId));
-				writer.writeAttribute("role", "outer");
-				writer.writeEndElement();
-
-				for (int j = 0; j < innerWayIds.size(); j++) {
-					writer.writeStartElement("member");
-					writer.writeAttribute("type", "way");
-					writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
-					writer.writeAttribute("role", "inner");
-					writer.writeEndElement();
-				}
-
-				writer.writeStartElement("tag");
-				writer.writeAttribute("k", "type");
-				writer.writeAttribute("v", "multipolygon");
-				writer.writeEndElement();
-			}
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "building");
-            writer.writeAttribute("v", "yes");
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:housenumber");
-            writer.writeAttribute("v", address.houseNumber);
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:street");
-            writer.writeAttribute("v", address.street.name);
-            writer.writeEndElement();
-
-            if (!address.city.isEmpty()) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:city");
-                writer.writeAttribute("v", address.city);
-                writer.writeEndElement();
-            }
-
-            if (address.zipCode != 0) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:postcode");
-                writer.writeAttribute("v", QString::number(address.zipCode));
-                writer.writeEndElement();
-            }
-
+            writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+            writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
             writer.writeEndElement();
         }
+
+        writer.writeStartElement("way");
+        writer.writeAttribute("id", tr("-%1").arg(id));
+        int wayId = id;
+        id++;
+
+        for (int j = coordinates->size() - 1; j >= 1; j--) {
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+            writer.writeEndElement();
+        }
+        writer.writeStartElement("nd");
+        writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+        writer.writeEndElement();
+
+        std::size_t numHoles = building.building.data()->getNumInteriorRing();
+        if (numHoles > 0) {
+            writer.writeEndElement();
+
+            QList<int> innerWayIds;
+
+            for (std::size_t j = 0; j < numHoles; j++) {
+                const geos::geom::CoordinateSequence* innerCoordinates = building
+                    .building.data()->getInteriorRingN(j)->getCoordinatesRO();
+
+                for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+                    geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+                    writer.writeStartElement("node");
+                    writer.writeAttribute("id", tr("-%1").arg(id));
+                    id++;
+                    writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                    writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                    writer.writeEndElement();
+                }
+
+                writer.writeStartElement("way");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                innerWayIds.append(id);
+                id++;
+
+                for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+                    writer.writeStartElement("nd");
+                    writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+                    writer.writeEndElement();
+                }
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+                writer.writeEndElement();
+
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("relation");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            id++;
+
+            writer.writeStartElement("member");
+            writer.writeAttribute("type", "way");
+            writer.writeAttribute("ref", tr("-%1").arg(wayId));
+            writer.writeAttribute("role", "outer");
+            writer.writeEndElement();
+
+            for (int j = 0; j < innerWayIds.size(); j++) {
+                writer.writeStartElement("member");
+                writer.writeAttribute("type", "way");
+                writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+                writer.writeAttribute("role", "inner");
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "type");
+            writer.writeAttribute("v", "multipolygon");
+            writer.writeEndElement();
+        }
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "building");
+        writer.writeAttribute("v", "yes");
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:housenumber");
+        writer.writeAttribute("v", address.houseNumber);
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:street");
+        writer.writeAttribute("v", address.street.name);
+        writer.writeEndElement();
+
+        if (!address.city.isEmpty()) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:city");
+            writer.writeAttribute("v", address.city);
+            writer.writeEndElement();
+        }
+
+        if (address.zipCode != 0) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:postcode");
+            writer.writeAttribute("v", QString::number(address.zipCode));
+            writer.writeEndElement();
+        }
+
+        writer.writeEndElement();
     }
 
     writer.writeEndElement();
     writer.writeStartElement("modify");
 
-    if (addressBuildings != NULL) {
-        QList<Address> mergedAddresses = addressBuildings->keys();
-        QList<Building> mergedBuildings = addressBuildings->values();
-        for (int i = 0; i < mergedBuildings.size(); i++) {
-            Address address = mergedAddresses.at(i);
-            Building building = mergedBuildings.at(i);
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        Address address = mergedAddresses.at(i);
+        Building building = mergedBuildings.at(i);
 
-            if (building.id == 0) {
-                continue;
-            }
+        if (building.id == 0) {
+            continue;
+        }
 
-            const geos::geom::CoordinateSequence* coordinates = building.building
-                    .data()->getExteriorRing()->getCoordinatesRO();
-            for (int j = 0; j < coordinates->size() - 1; j++) {
-                geos::geom::Coordinate coordinate = coordinates->getAt(j);
-                writer.writeStartElement("node");
-                writer.writeAttribute("id", tr("-%1").arg(id));
-                id++;
-                writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-                writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-                writer.writeEndElement();
-            }
-
-            writer.writeStartElement("way");
+        const geos::geom::CoordinateSequence* coordinates = building.building
+                .data()->getExteriorRing()->getCoordinatesRO();
+        for (int j = 0; j < coordinates->size() - 1; j++) {
+            geos::geom::Coordinate coordinate = coordinates->getAt(j);
+            writer.writeStartElement("node");
             writer.writeAttribute("id", tr("-%1").arg(id));
-            int wayId = id;
             id++;
-
-            for (int j = coordinates->size() - 1; j >= 1; j--) {
-                writer.writeStartElement("nd");
-                writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
-                writer.writeEndElement();
-            }
-            writer.writeStartElement("nd");
-            writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
-            writer.writeEndElement();
-
-            std::size_t numHoles = building.building.data()->getNumInteriorRing();
-            if (numHoles > 0) {
-                writer.writeEndElement();
-
-                QList<int> innerWayIds;
-
-                for (std::size_t j = 0; j < numHoles; j++) {
-                    const geos::geom::CoordinateSequence* innerCoordinates = building
-                        .building.data()->getInteriorRingN(j)->getCoordinatesRO();
-
-                    for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
-                        geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
-                        writer.writeStartElement("node");
-                        writer.writeAttribute("id", tr("-%1").arg(id));
-                        id++;
-                        writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
-                        writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
-                        writer.writeEndElement();
-                    }
-
-                    writer.writeStartElement("way");
-                    writer.writeAttribute("id", tr("-%1").arg(id));
-                    innerWayIds.append(id);
-                    id++;
-
-                    for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
-                        writer.writeStartElement("nd");
-                        writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
-                        writer.writeEndElement();
-                    }
-                    writer.writeStartElement("nd");
-                    writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
-                    writer.writeEndElement();
-
-                    writer.writeEndElement();
-                }
-
-                writer.writeStartElement("relation");
-                writer.writeAttribute("id", tr("-%1").arg(id));
-                id++;
-
-                writer.writeStartElement("member");
-                writer.writeAttribute("type", "way");
-                writer.writeAttribute("ref", tr("-%1").arg(wayId));
-                writer.writeAttribute("role", "outer");
-                writer.writeEndElement();
-
-                for (int j = 0; j < innerWayIds.size(); j++) {
-                    writer.writeStartElement("member");
-                    writer.writeAttribute("type", "way");
-                    writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
-                    writer.writeAttribute("role", "inner");
-                    writer.writeEndElement();
-                }
-
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "type");
-                writer.writeAttribute("v", "multipolygon");
-                writer.writeEndElement();
-            }
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "building");
-            writer.writeAttribute("v", "yes");
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:housenumber");
-            writer.writeAttribute("v", address.houseNumber);
-            writer.writeEndElement();
-
-            writer.writeStartElement("tag");
-            writer.writeAttribute("k", "addr:street");
-            writer.writeAttribute("v", address.street.name);
-            writer.writeEndElement();
-
-            if (!address.city.isEmpty()) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:city");
-                writer.writeAttribute("v", address.city);
-                writer.writeEndElement();
-            }
-
-            if (address.zipCode != 0) {
-                writer.writeStartElement("tag");
-                writer.writeAttribute("k", "addr:postcode");
-                writer.writeAttribute("v", QString::number(address.zipCode));
-                writer.writeEndElement();
-            }
-
+            writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+            writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
             writer.writeEndElement();
         }
+
+        writer.writeStartElement("way");
+        writer.writeAttribute("id", tr("-%1").arg(id));
+        int wayId = id;
+        id++;
+
+        for (int j = coordinates->size() - 1; j >= 1; j--) {
+            writer.writeStartElement("nd");
+            writer.writeAttribute("ref", tr("-%1").arg(id - (j + 1)));
+            writer.writeEndElement();
+        }
+        writer.writeStartElement("nd");
+        writer.writeAttribute("ref", tr("-%1").arg(id - coordinates->size()));
+        writer.writeEndElement();
+
+        std::size_t numHoles = building.building.data()->getNumInteriorRing();
+        if (numHoles > 0) {
+            writer.writeEndElement();
+
+            QList<int> innerWayIds;
+
+            for (std::size_t j = 0; j < numHoles; j++) {
+                const geos::geom::CoordinateSequence* innerCoordinates = building
+                    .building.data()->getInteriorRingN(j)->getCoordinatesRO();
+
+                for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
+                    geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
+                    writer.writeStartElement("node");
+                    writer.writeAttribute("id", tr("-%1").arg(id));
+                    id++;
+                    writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
+                    writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+                    writer.writeEndElement();
+                }
+
+                writer.writeStartElement("way");
+                writer.writeAttribute("id", tr("-%1").arg(id));
+                innerWayIds.append(id);
+                id++;
+
+                for (int k = innerCoordinates->size() - 1; k >= 1; k--) {
+                    writer.writeStartElement("nd");
+                    writer.writeAttribute("ref", tr("-%1").arg(id - (k + 1)));
+                    writer.writeEndElement();
+                }
+                writer.writeStartElement("nd");
+                writer.writeAttribute("ref", tr("-%1").arg(id - innerCoordinates->size()));
+                writer.writeEndElement();
+
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("relation");
+            writer.writeAttribute("id", tr("-%1").arg(id));
+            id++;
+
+            writer.writeStartElement("member");
+            writer.writeAttribute("type", "way");
+            writer.writeAttribute("ref", tr("-%1").arg(wayId));
+            writer.writeAttribute("role", "outer");
+            writer.writeEndElement();
+
+            for (int j = 0; j < innerWayIds.size(); j++) {
+                writer.writeStartElement("member");
+                writer.writeAttribute("type", "way");
+                writer.writeAttribute("ref", tr("-%1").arg(innerWayIds.at(j)));
+                writer.writeAttribute("role", "inner");
+                writer.writeEndElement();
+            }
+
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "type");
+            writer.writeAttribute("v", "multipolygon");
+            writer.writeEndElement();
+        }
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "building");
+        writer.writeAttribute("v", "yes");
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:housenumber");
+        writer.writeAttribute("v", address.houseNumber);
+        writer.writeEndElement();
+
+        writer.writeStartElement("tag");
+        writer.writeAttribute("k", "addr:street");
+        writer.writeAttribute("v", address.street.name);
+        writer.writeEndElement();
+
+        if (!address.city.isEmpty()) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:city");
+            writer.writeAttribute("v", address.city);
+            writer.writeEndElement();
+        }
+
+        if (address.zipCode != 0) {
+            writer.writeStartElement("tag");
+            writer.writeAttribute("k", "addr:postcode");
+            writer.writeAttribute("v", QString::number(address.zipCode));
+            writer.writeEndElement();
+        }
+
+        writer.writeEndElement();
     }
 
     writer.writeEndElement();

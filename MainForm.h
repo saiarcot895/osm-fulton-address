@@ -70,12 +70,12 @@ private:
     void validateBetweenAddresses();
     void checkZipCodes();
     void mergeAddressBuilding();
-	void mergeNearbyAddressBuilding();
+    void mergeNearbyAddressBuilding();
     void outputChangeFile();
     void writeXMLFile(QFile& file,
-            QList<Address>* address,
-            QList<Building>* buildings,
-            QHash<Address, Building>* addressBuildings);
+            const QList<Address> address,
+            const QList<Building> buildings,
+            const QHash<Address, Building> addressBuildings);
     void outputStartOfFile(QXmlStreamWriter& writer);
     void outputEndOfFile(QXmlStreamWriter& writer);
     void cleanup();
