@@ -524,8 +524,6 @@ void MainForm::readBuildingFile() {
                         } else if (reader.attributes().value("v").startsWith("Retail")
                                    || reader.attributes().value("v").contains("Shopping")) {
                             tags.insert("building", "retail");
-                        } else {
-                            qDebug() << "Description:" << reader.attributes().value("v").toString();
                         }
                     }
                 }
@@ -693,7 +691,8 @@ void MainForm::simplifyBuildings() {
 
             if (current.distance(after) * DEGREES_TO_METERS < 0.05) {
                 if (j = coordinates->size() - 2) {
-                    coordinates->deleteAt(j);
+                    // For some reason, remoing at this case causes buildings to look weird.
+                    //coordinates->deleteAt(j);
                 } else {
                     coordinates->deleteAt(j + 1);
                 }
