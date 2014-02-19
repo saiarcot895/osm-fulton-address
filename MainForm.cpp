@@ -112,6 +112,7 @@ void MainForm::setOutputFile() {
 }
 
 void MainForm::convert() {
+    widget->textBrowser->clear();
     widget->pushButton_2->setEnabled(false);
     widget->tab->setEnabled(false);
     widget->tabWidget->setCurrentIndex(1);
