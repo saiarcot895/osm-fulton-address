@@ -738,17 +738,17 @@ void MainForm::readAddressFile() {
     }
 
     QXmlStreamReader reader(&file);
-    Address* address;
+    Address address;
     bool skip = false;
     while (!reader.atEnd()) {
         switch (reader.readNext()) {
             case QXmlStreamReader::StartElement:
                 if (reader.name().toString() == "node") {
-                    address = new Address();
+                    address = Address();
                     geos::geom::Coordinate coordinate;
                     coordinate.y = reader.attributes().value("lat").toString().toDouble();
                     coordinate.x = reader.attributes().value("lon").toString().toDouble();
-                    address->coordinate = QSharedPointer<geos::geom::Point>(factory->createPoint(coordinate));
+                    address.coordinate = QSharedPointer<geos::geom::Point>(factory->createPoint(coordinate));
                     // Check to see if the address is inside the BBox
                     skip = !(coordinate.y <= widget->doubleSpinBox->value() &&
                             coordinate.y >= widget->doubleSpinBox_3->value() &&
@@ -756,31 +756,31 @@ void MainForm::readAddressFile() {
                             coordinate.x <= widget->doubleSpinBox_4->value());
                 } else if (reader.name().toString() == "tag" && !skip) {
                     if (reader.attributes().value("k") == "addr:housenumber") {
-                        address->houseNumber = reader.attributes().value("v").toString();
+                        address.houseNumber = reader.attributes().value("v").toString();
                     } else if (reader.attributes().value("k") == "addr:street") {
                         QString streetName = reader.attributes().value("v").toString();
                         QList<Street*> matches = streets.values(streetName.toUpper());
                         if (!matches.isEmpty()) {
                             Street* closestStreet = matches.at(0);
-                            double minDistance = address->coordinate.data()->distance(closestStreet->path.data());
+                            double minDistance = address.coordinate.data()->distance(closestStreet->path.data());
                             for (int i = 1; i < matches.size(); i++) {
-                                double distance = address->coordinate.data()->distance(matches.at(i)->path.data());
+                                double distance = address.coordinate.data()->distance(matches.at(i)->path.data());
                                 if (distance < minDistance) {
                                     closestStreet = matches.at(i);
                                     minDistance = distance;
                                 }
                             }
-                            address->street = *closestStreet;
+                            address.street = *closestStreet;
                         }
                     } else if (reader.attributes().value("k") == "addr:city") {
-                        address->city = toTitleCase(reader.attributes().value("v").toString());
+                        address.city = toTitleCase(reader.attributes().value("v").toString());
                     } else if (reader.attributes().value("k") == "addr:postcode") {
-                        address->zipCode = reader.attributes().value("v").toString().toInt();
+                        address.zipCode = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
                         if (reader.attributes().value("v") == "driv") {
-                            address->addressType = Address::Primary;
+                            address.addressType = Address::Primary;
                         } else if (reader.attributes().value("v") == "stru") {
-                            address->addressType = Address::Structural;
+                            address.addressType = Address::Structural;
                         }
                     }
                 }
@@ -788,36 +788,31 @@ void MainForm::readAddressFile() {
             case QXmlStreamReader::EndElement:
                 if (reader.name().toString() == "node") {
                     if (!skip) {
-                        if (!address->houseNumber.isEmpty()
-                                && !address->street.name.isEmpty()
-                                && !existingAddresses.contains(*address)
-                                && address->addressType != Address::Other) {
-                            int i = newAddresses.indexOf(*address);
+                        if (!address.houseNumber.isEmpty()
+                                && !address.street.name.isEmpty()
+                                && !existingAddresses.contains(address)
+                                && address.addressType != Address::Other) {
+                            int i = newAddresses.indexOf(address);
                             if (i != -1) {
                                 Address existingAddress = newAddresses.at(i);
                                 if (existingAddress.addressType == Address::Structural
-                                        && address->addressType == Address::Structural) {
+                                        && address.addressType == Address::Structural) {
                                     existingAddress.allowStructural = false;
                                 } else if (existingAddress.addressType == Address::Primary
-                                        && address->addressType == Address::Structural
+                                        && address.addressType == Address::Structural
                                         && existingAddress.allowStructural) {
-                                    existingAddress.coordinate = address->coordinate;
+                                    existingAddress.coordinate = address.coordinate;
                                     existingAddress.addressType = Address::Structural;
                                 } else if (existingAddress.addressType == Address::Structural
-                                        && address->addressType == Address::Primary
+                                        && address.addressType == Address::Primary
                                         && !existingAddress.allowStructural) {
-                                    existingAddress.coordinate = address->coordinate;
+                                    existingAddress.coordinate = address.coordinate;
                                     existingAddress.addressType = Address::Primary;
                                 }
-                                delete address;
                             } else {
-                                newAddresses.append(*address);
+                                newAddresses.append(address);
                             }
-                        } else {
-                            delete address;
                         }
-                    } else {
-                        delete address;
                     }
                 }
                 break;
