@@ -1025,7 +1025,7 @@ void MainForm::mergeNearbyAddressBuilding() {
         Building building = i < buildings.size()
                 ? buildings.at(i)
                 : existingBuildings.at(i - buildings.size());
-        double maxDistance = 10;
+        double maxDistance = 25;
 		bool addressSet = false;
 		Address setAddress;
 
