@@ -33,7 +33,7 @@ FORMS += \
 
 unix{
   LIBS += `geos-config --libs`
-  QMAKE_CXXFLAGS=`geos-config --cflags`
+  QMAKE_CXXFLAGS += `geos-config --cflags`
 }
 macx{
   LIBS += -framework geos
