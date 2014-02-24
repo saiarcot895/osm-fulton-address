@@ -23,7 +23,7 @@ public:
     };
 
     QString houseNumber;
-    Street street;
+    QSharedPointer<Street> street;
     QString city;
     int zipCode;
     QSharedPointer<geos::geom::Point> coordinate;

@@ -184,7 +184,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             // linked to. If there is any address with the same number
                             // and street name, skip it.
 							if (address != NULL) {
-								address->street.name = reader.attributes().value("v").toString();
+                                address->street = QSharedPointer<Street>(new Street());
+                                address->street.data()->name = reader.attributes().value("v").toString();
 								existingAddresses.append(*address);
 								address = NULL;
 							}
@@ -210,7 +211,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                 case QXmlStreamReader::EndElement:
                     if (reader.name().toString() == "way") {
 						if (current == WayConfirmed) {
-							streets.insertMulti(street->name.toUpper(), street);
+                            streets.insertMulti(street->name.toUpper(), QSharedPointer<Street>(street));
 							current = None;
 							street = NULL;
 						} else if (current == BuildingConfirmed) {
@@ -231,9 +232,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
             }
         }
 
-        QList<Street*> streetValues = streets.values();
+        QList<QSharedPointer<Street> > streetValues = streets.values();
         for (int i = 0; i < streetValues.size(); i++) {
-            Street* street = streetValues.at(i);
+            Street* street = streetValues.at(i).data();
             geos::geom::CoordinateSequence* nodePoints = factory
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
@@ -267,9 +268,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
 
         if (widget->checkBox->isChecked()) {
             widget->textBrowser->append("Streets:");
-            QList<Street*> streetValues = streets.values();
+            QList<QSharedPointer<Street> > streetValues = streets.values();
             for (int i = 0; i < streetValues.size(); i++) {
-                Street* street = streetValues.at(i);
+                Street* street = streetValues.at(i).data();
                 widget->textBrowser->append(street->name);
             }
         }
@@ -278,7 +279,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
             widget->textBrowser->append("Existing Addresses:");
             for (int i = 0; i < existingAddresses.size(); i++) {
                 Address address = existingAddresses.at(i);
-                widget->textBrowser->append(address.houseNumber + " " + address.street.name);
+                widget->textBrowser->append(address.houseNumber + " " + address.street.data()->name);
             }
         }
         readZipCodeFile();
@@ -376,8 +377,8 @@ void MainForm::readZipCodeFile() {
                     }
                     if (polygon) {
                         geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
-                        zipCodes.insert(zipCode, factory->createPolygon(ring,
-                                NULL));
+                        zipCodes.insert(zipCode, QSharedPointer<geos::geom::Polygon>(
+                                            factory->createPolygon(ring, NULL)));
                         zipCode = 0;
                         polygon = false;
                     }
@@ -389,8 +390,8 @@ void MainForm::readZipCodeFile() {
                             ->createLinearRing(baseSequence);
                     std::vector<geos::geom::Geometry*> innerHoles = holes
                             .toVector().toStdVector();
-                    zipCodes.insert(zipCode, factory->createPolygon(*outerRing,
-                        innerHoles));
+                    zipCodes.insert(zipCode, QSharedPointer<geos::geom::Polygon>(
+                                        factory->createPolygon(*outerRing, innerHoles)));
 
                     baseSequence = NULL;
                     delete outerRing;
@@ -619,11 +620,11 @@ void MainForm::validateBuildings() {
         widget->textBrowser->append("Removed Overlapping Buildings: ");
     }
     for (int i = 0; i < buildings.size(); i++) {
-        Building building1 = buildings.at(i);
+        const Building& building1 = buildings.at(i);
 
         geos::geom::prep::PreparedPolygon polygon(building1.building.data());
         for (int j = i + 1; j < buildings.size(); j++) {
-            Building building2 = buildings.at(j);
+            const Building& building2 = buildings.at(j);
 
             if (polygon.intersects(building2.building.data())) {
                 if (building1.year >= building2.year) {
@@ -655,12 +656,12 @@ void MainForm::validateBuildings() {
 
 void MainForm::removeIntersectingBuildings() {
 	for (int i = 0; i < existingBuildings.size(); i++) {
-		Building existingBuilding = existingBuildings.at(i);
+        const Building& existingBuilding = existingBuildings.at(i);
 
         geos::geom::prep::PreparedPolygon polygon(existingBuilding.building
 				.data());
 		for (int j = 0; j < buildings.size(); j++) {
-			Building building = buildings.at(j);
+            const Building& building = buildings.at(j);
 
             if (polygon.intersects(building.building.data())) {
 				buildings.removeAt(j);
@@ -759,18 +760,18 @@ void MainForm::readAddressFile() {
                         address.houseNumber = reader.attributes().value("v").toString();
                     } else if (reader.attributes().value("k") == "addr:street") {
                         QString streetName = reader.attributes().value("v").toString();
-                        QList<Street*> matches = streets.values(streetName.toUpper());
+                        QList<QSharedPointer<Street> > matches = streets.values(streetName.toUpper());
                         if (!matches.isEmpty()) {
-                            Street* closestStreet = matches.at(0);
-                            double minDistance = address.coordinate.data()->distance(closestStreet->path.data());
+                            QSharedPointer<Street> closestStreetPointer = matches.at(0);
+                            double minDistance = address.coordinate.data()->distance(closestStreetPointer.data()->path.data());
                             for (int i = 1; i < matches.size(); i++) {
                                 double distance = address.coordinate.data()->distance(matches.at(i)->path.data());
                                 if (distance < minDistance) {
-                                    closestStreet = matches.at(i);
+                                    closestStreetPointer = matches.at(i);
                                     minDistance = distance;
                                 }
                             }
-                            address.street = *closestStreet;
+                            address.street = closestStreetPointer;
                         }
                     } else if (reader.attributes().value("k") == "addr:city") {
                         address.city = toTitleCase(reader.attributes().value("v").toString());
@@ -789,7 +790,7 @@ void MainForm::readAddressFile() {
                 if (reader.name().toString() == "node") {
                     if (!skip) {
                         if (!address.houseNumber.isEmpty()
-                                && !address.street.name.isEmpty()
+                                && address.street.data() != NULL
                                 && !existingAddresses.contains(address)
                                 && address.addressType != Address::Other) {
                             int i = newAddresses.indexOf(address);
@@ -825,7 +826,7 @@ void MainForm::readAddressFile() {
         widget->textBrowser->append("New Addresses (before validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
-            widget->textBrowser->append(address.houseNumber + " " + address.street.name);
+            widget->textBrowser->append(address.houseNumber + " " + address.street.data()->name);
         }
     }
     validateAddresses();
@@ -839,12 +840,12 @@ void MainForm::validateAddresses() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
 
-        double distance = address.coordinate.data()->distance(address.street.path.data()) * DEGREES_TO_METERS;
+        double distance = address.coordinate.data()->distance(address.street.data()->path.data()) * DEGREES_TO_METERS;
 
         if (distance > 100) {
             if (widget->checkBox_5->isChecked()) {
                 widget->textBrowser->append(tr("Too far from the street: %1 %2").arg(address.houseNumber)
-                        .arg(address.street.name));
+                        .arg(address.street.data()->name));
             }
             newAddresses.removeOne(address);
             excludedAddresses.append(address);
@@ -852,7 +853,7 @@ void MainForm::validateAddresses() {
         } else if (distance < 5) {
             if (widget->checkBox_6->isChecked()) {
                 widget->textBrowser->append(tr("Too close to the street: %1 %2").arg(address.houseNumber)
-                        .arg(address.street.name));
+                        .arg(address.street.data()->name));
             }
             newAddresses.removeOne(address);
             excludedAddresses.append(address);
@@ -866,7 +867,7 @@ void MainForm::validateAddresses() {
         widget->textBrowser->append("New Addresses (after validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
             Address address = newAddresses.at(i);
-            widget->textBrowser->append(address.houseNumber + " " + address.street.name);
+            widget->textBrowser->append(address.houseNumber + " " + address.street.data()->name);
         }
     }
 
@@ -905,7 +906,7 @@ void MainForm::validateBetweenAddresses() {
                 if (distance < 4) {
                     if (widget->checkBox_4->isChecked()) {
                         widget->textBrowser->append(tr("Too close to another address: %1 %2")
-                                .arg(address2.houseNumber).arg(address2.street.name));
+                                .arg(address2.houseNumber).arg(address2.street.data()->name));
                     }
                     newAddresses.removeOne(address2);
                     excludedAddresses.append(address2);
@@ -929,12 +930,12 @@ void MainForm::checkZipCodes() {
 
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses[i];
-        geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, NULL);
+        geos::geom::Polygon* zipCodePolygon = zipCodes.value(address.zipCode, QSharedPointer<geos::geom::Polygon>()).data();
 
         if (zipCodePolygon == NULL || !zipCodePolygon->contains(address.coordinate.data())) {
             if (widget->checkBox_11->isChecked()) {
                 widget->textBrowser->append(tr("%1 %2, %3").arg(address.houseNumber)
-                                            .arg(address.street.name).arg(address.zipCode));
+                                            .arg(address.street.data()->name).arg(address.zipCode));
             }
             address.zipCode = 0;
             newAddresses[i] = address;
@@ -951,7 +952,7 @@ void MainForm::mergeAddressBuilding() {
     }
 
     for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
-        Building building = i < buildings.size()
+        const Building& building = i < buildings.size()
                 ? buildings.at(i)
                 : existingBuildings.at(i - buildings.size());
         bool addressSet = false;
@@ -972,7 +973,7 @@ void MainForm::mergeAddressBuilding() {
         geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
         for (int j = 0; j < newAddresses.size(); j++) {
-            Address address = newAddresses.at(j);
+            const Address& address = newAddresses.at(j);
 
             if (polygon.contains(address.coordinate.data())) {
                 if (!addressSet) {
@@ -996,7 +997,7 @@ void MainForm::mergeAddressBuilding() {
         newAddresses.removeOne(mergedAddress);
         if (widget->checkBox_10->isChecked()) {
             widget->textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
-                    mergedAddress.street.name));
+                    mergedAddress.street.data()->name));
         }
     }
 
@@ -1030,7 +1031,7 @@ void MainForm::mergeNearbyAddressBuilding() {
         geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
         for (int j = 0; j < newAddresses.size(); j++) {
-            const Address address = newAddresses.at(j);
+            const Address& address = newAddresses.at(j);
 
             double distance = building.building.data()->distance(address
 				.coordinate.data()) * DEGREES_TO_METERS;
@@ -1046,7 +1047,7 @@ void MainForm::mergeNearbyAddressBuilding() {
                     nearbyAddressBuildings.insert(address, building);
                     maxDistance = distance;
 					addressSet = true;
-					setAddress = address;
+                    setAddress = address;
                 } else {
                     break;
                 }
@@ -1060,7 +1061,7 @@ void MainForm::mergeNearbyAddressBuilding() {
         newAddresses.removeOne(mergedAddress);
         if (widget->checkBox_10->isChecked()) {
             widget->textBrowser->append(tr("%1 %2").arg(mergedAddress.houseNumber,
-                    mergedAddress.street.name));
+                    mergedAddress.street.data()->name));
         }
     }
 
@@ -1156,7 +1157,7 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:street");
-        writer.writeAttribute("v", address.street.name);
+        writer.writeAttribute("v", address.street.data()->name);
         writer.writeEndElement();
 
         if (!address.city.isEmpty()) {
@@ -1409,7 +1410,7 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:street");
-        writer.writeAttribute("v", address.street.name);
+        writer.writeAttribute("v", address.street.data()->name);
         writer.writeEndElement();
 
         if (!address.city.isEmpty()) {
@@ -1477,7 +1478,7 @@ void MainForm::writeXMLFile(QFile& file, const QList<Address> addresses,
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:street");
-        writer.writeAttribute("v", address.street.name);
+        writer.writeAttribute("v", address.street.data()->name);
         writer.writeEndElement();
 
         if (!address.city.isEmpty()) {
@@ -1514,16 +1515,12 @@ void MainForm::outputEndOfFile(QXmlStreamWriter& writer) {
 
 void MainForm::cleanup() {
     nodes.clear();
-    QList<Street*> streetValues = streets.values();
-    for (int i = 0; i < streetValues.size(); i++) {
-        Street* street = streetValues.at(i);
-        delete street;
-    }
     streets.clear();
     existingAddresses.clear();
     newAddresses.clear();
     excludedAddresses.clear();
     addressBuildings.clear();
+    zipCodes.clear();
 
     widget->pushButton_2->setEnabled(true);
     widget->tab->setEnabled(true);

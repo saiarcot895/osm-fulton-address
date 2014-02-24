@@ -43,8 +43,8 @@ private:
     QNetworkAccessManager* nam;
     geos::geom::GeometryFactory* factory;
     QHash<uint, Node> nodes;
-    QHash<int, geos::geom::Polygon*> zipCodes;
-    QHash<QString, Street*> streets;
+    QHash<int, QSharedPointer<geos::geom::Polygon> > zipCodes;
+    QHash<QString, QSharedPointer<Street> > streets;
 	QList<Building> existingBuildings;
     QList<Building> buildings;
     QList<Address> existingAddresses;
