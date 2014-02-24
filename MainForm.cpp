@@ -810,6 +810,7 @@ void MainForm::readAddressFile() {
                                     existingAddress.coordinate = address.coordinate;
                                     existingAddress.addressType = Address::Primary;
                                 }
+                                newAddresses.replace(i, existingAddress);
                             } else {
                                 newAddresses.append(address);
                             }
