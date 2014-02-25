@@ -67,7 +67,11 @@ MainForm::MainForm(QStringList options, QWidget *parent) :
                 widget->doubleSpinBox_2->setValue(coords.at(1).toDouble());
                 widget->doubleSpinBox_3->setValue(coords.at(2).toDouble());
                 widget->doubleSpinBox_4->setValue(coords.at(3).toDouble());
-			}
+            } else if (variable == "execute") {
+                if (!widget->lineEdit->text().isEmpty()) {
+                    convert();
+                }
+            }
 		}
 	}
 }
@@ -1022,7 +1026,7 @@ void MainForm::mergeNearbyAddressBuilding() {
 	// At this point, only unmerged buildings and addresses exist in the buildings
 	// and addresses list.
     for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
-        Building building = i < buildings.size()
+        const Building& building = i < buildings.size()
                 ? buildings.at(i)
                 : existingBuildings.at(i - buildings.size());
         double maxDistance = 25;
@@ -1036,6 +1040,10 @@ void MainForm::mergeNearbyAddressBuilding() {
 
             double distance = building.building.data()->distance(address
 				.coordinate.data()) * DEGREES_TO_METERS;
+            if (addressSet && qAbs(maxDistance - distance) < 0.5) {
+                nearbyAddressBuildings.remove(setAddress);
+                break;
+            }
             if (distance < maxDistance) {
 				if (addressSet) {
 					nearbyAddressBuildings.remove(setAddress);
