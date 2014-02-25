@@ -6,7 +6,7 @@
  */
 
 #ifndef BUILDING_H
-#define	BUILDING_H
+#define BUILDING_H
 
 #include <QSharedPointer>
 #include <QMap>
@@ -32,5 +32,5 @@ uint qHash(const Building& key);
 
 bool operator==(const Building& building1, const Building& building2);
 
-#endif	/* BUILDING_H */
+#endif /* BUILDING_H */
 

@@ -48,21 +48,21 @@ MainForm::MainForm(QWidget *parent) :
 
 MainForm::MainForm(QStringList options, QWidget *parent) :
     MainForm(parent) {
-	while (!options.isEmpty()) {
-		QString option = options.takeFirst();
-		QStringList params = option.remove("--").split('=');
-		if (params.size() == 2) {
-			QString variable = params.at(0);
-			if (variable == "address") {
+    while (!options.isEmpty()) {
+        QString option = options.takeFirst();
+        QStringList params = option.remove("--").split('=');
+        if (params.size() == 2) {
+            QString variable = params.at(0);
+            if (variable == "address") {
                 widget->lineEdit->setText(params.at(1));
-			} else if (variable == "building") {
+            } else if (variable == "building") {
                 widget->lineEdit_4->setText(params.at(1));
-			} else if (variable == "output") {
+            } else if (variable == "output") {
                 widget->lineEdit_2->setText(params.at(1));
-			} else if (variable == "zip-code") {
+            } else if (variable == "zip-code") {
                 widget->lineEdit_3->setText(params.at(1));
-			} else if (variable == "bbox") {
-				QStringList coords = params.at(1).split(",");
+            } else if (variable == "bbox") {
+                QStringList coords = params.at(1).split(",");
                 widget->doubleSpinBox->setValue(coords.at(0).toDouble());
                 widget->doubleSpinBox_2->setValue(coords.at(1).toDouble());
                 widget->doubleSpinBox_3->setValue(coords.at(2).toDouble());
@@ -72,8 +72,8 @@ MainForm::MainForm(QStringList options, QWidget *parent) :
                     convert();
                 }
             }
-		}
-	}
+        }
+    }
 }
 
 QString MainForm::openFile() {
@@ -129,7 +129,7 @@ void MainForm::downloadOSM() {
             "(node[\"addr:housenumber\"](%1,%2,%3,%4);"
             "way[\"addr:housenumber\"](%1,%2,%3,%4);"
             "way[\"name\"](%1,%2,%3,%4);"
-			"way[\"building\"](%1,%2,%3,%4);"
+            "way[\"building\"](%1,%2,%3,%4);"
             "relation[\"addr:housenumber\"](%1,%2,%3,%4););"
             "out meta;>;out meta;")
             .arg(widget->doubleSpinBox_3->value())
@@ -152,9 +152,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
         QXmlStreamReader reader(reply->readAll());
         Street* street = NULL;
         Address* address = NULL;
-		uint id = 0;
+        uint id = 0;
         int version = -1;
-		QList<uint> nodeIndices;
+        QList<uint> nodeIndices;
         QMap<QString, QString> tags;
         FeatureType current = None;
         while (!reader.atEnd()) {
@@ -176,7 +176,7 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         // now, assume it is a road, since we need the nodes and
                         // those come before the way tags
                         current = Way;
-						id = reader.attributes().value("id").toString().toUInt();
+                        id = reader.attributes().value("id").toString().toUInt();
                         version = reader.attributes().value("version").toString().toInt();
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
@@ -187,12 +187,12 @@ void MainForm::readOSM(QNetworkReply* reply) {
                             // We don't care what street instance the address is
                             // linked to. If there is any address with the same number
                             // and street name, skip it.
-							if (address != NULL) {
+                            if (address != NULL) {
                                 address->street = QSharedPointer<Street>(new Street());
                                 address->street.data()->name = reader.attributes().value("v").toString();
-								existingAddresses.append(*address);
-								address = NULL;
-							}
+                                existingAddresses.append(*address);
+                                address = NULL;
+                            }
                         } else if (current == Way && reader.attributes().value("k") == "building") {
                             // We now know this is a building.
                             current = BuildingConfirmed;
@@ -200,8 +200,8 @@ void MainForm::readOSM(QNetworkReply* reply) {
                                 && current == Way) {
                             // We now know this is a way.
                             current = WayConfirmed;
-							street = new Street();
-							street->nodeIndices = nodeIndices;
+                            street = new Street();
+                            street->nodeIndices = nodeIndices;
                         } else if (reader.attributes().value("k") == "name"
                                 && current == WayConfirmed) {
                             street->name = reader.attributes().value("v").toString();
@@ -214,19 +214,19 @@ void MainForm::readOSM(QNetworkReply* reply) {
                     break;
                 case QXmlStreamReader::EndElement:
                     if (reader.name().toString() == "way") {
-						if (current == WayConfirmed) {
+                        if (current == WayConfirmed) {
                             streets.insertMulti(street->name.toUpper(), QSharedPointer<Street>(street));
-							current = None;
-							street = NULL;
-						} else if (current == BuildingConfirmed) {
-							Building building;
+                            current = None;
+                            street = NULL;
+                        } else if (current == BuildingConfirmed) {
+                            Building building;
                             building.id = id;
                             building.version = version;
                             building.nodeIndices = nodeIndices;
                             building.tags = tags;
-							existingBuildings.append(building);
-							current = None;
-						}
+                            existingBuildings.append(building);
+                            current = None;
+                        }
                         nodeIndices.clear();
                         tags.clear();
                     }
@@ -248,9 +248,9 @@ void MainForm::readOSM(QNetworkReply* reply) {
             street->path = QSharedPointer<geos::geom::LineString>(factory->createLineString(nodePoints));
         }
 
-		for (int i = 0; i < existingBuildings.size(); i++) {
-			Building building = existingBuildings.at(i);
-			geos::geom::CoordinateSequence* nodePoints = factory
+        for (int i = 0; i < existingBuildings.size(); i++) {
+            Building building = existingBuildings.at(i);
+            geos::geom::CoordinateSequence* nodePoints = factory
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < building.nodeIndices.size(); j++) {
@@ -258,17 +258,17 @@ void MainForm::readOSM(QNetworkReply* reply) {
                         .point.data()->getCoordinate());
                 nodePoints->add(coord);
             }
-			try {
-				geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
+            try {
+                geos::geom::LinearRing* ring = factory->createLinearRing(nodePoints);
                 building.building = QSharedPointer<geos::geom::Polygon>(factory
                         ->createPolygon(ring, NULL));
-				existingBuildings.replace(i, building);
-			} catch (...) {
-				qDebug() << "Building skipped";
-				existingBuildings.removeAt(i);
-				i--;
-			}
-		}
+                existingBuildings.replace(i, building);
+            } catch (...) {
+                qDebug() << "Building skipped";
+                existingBuildings.removeAt(i);
+                i--;
+            }
+        }
 
         if (widget->checkBox->isChecked()) {
             widget->textBrowser->append("Streets:");
@@ -455,9 +455,9 @@ void MainForm::readBuildingFile() {
 
     QXmlStreamReader reader(&file);
     qlonglong wayId;
-	QString featureId;
-	bool skip1 = true;
-	int year;
+    QString featureId;
+    bool skip1 = true;
+    int year;
     QMap<QString, QString> tags;
     geos::geom::CoordinateSequence* baseSequence = NULL;
     QList<geos::geom::Geometry*> holes;
@@ -481,9 +481,9 @@ void MainForm::readBuildingFile() {
                         if (baseSequence == NULL) {
                             baseSequence = sequence;
                         } else {
-							if (sequence->size() > baseSequence->size()) {
-								baseSequence = sequence;
-							}
+                            if (sequence->size() > baseSequence->size()) {
+                                baseSequence = sequence;
+                            }
                         }
                     } else if (reader.attributes().value("role").toString() == "inner") {
                         geos::geom::CoordinateSequence* sequence = buildingWays
@@ -499,11 +499,11 @@ void MainForm::readBuildingFile() {
                     coordinates.append(*buildingNodes.value(reader.attributes()
                             .value("ref").toString().toLongLong())->getCoordinate());
                 } else if (reader.name().toString() == "tag") {
-					if (reader.attributes().value("k").toString() == "FeatureID") {
-						featureId = reader.attributes().value("v").toString();
-						skip1 = false;
-					} else if (reader.attributes().value("k").toString() == "YearBuilt") {
-						year = reader.attributes().value("v").toString().toInt();
+                    if (reader.attributes().value("k").toString() == "FeatureID") {
+                        featureId = reader.attributes().value("v").toString();
+                        skip1 = false;
+                    } else if (reader.attributes().value("k").toString() == "YearBuilt") {
+                        year = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k").toString() == "FeatType") {
                         tags.insert("-featureType", reader.attributes().value("v").toString());
                     } else if (reader.attributes().value("k").toString() == "LUCDesc") {
@@ -540,28 +540,28 @@ void MainForm::readBuildingFile() {
                     geos::geom::CoordinateSequence* sequence = factory
                                 ->getCoordinateSequenceFactory()->create(
                                 (std::vector<geos::geom::Coordinate>*) NULL, 2);
-					bool skip = true;
+                    bool skip = true;
                     for (int i = 0; i < coordinates.size(); i++) {
-						geos::geom::Coordinate coord = coordinates.at(i);
-						if (skip && coord.y >= minLat && coord.y <= maxLat
-								&& coord.x >= minLon && coord.x <= maxLon) {
-							skip = false;
-						}
+                        geos::geom::Coordinate coord = coordinates.at(i);
+                        if (skip && coord.y >= minLat && coord.y <= maxLat
+                                && coord.x >= minLon && coord.x <= maxLon) {
+                            skip = false;
+                        }
                         sequence->add(coord);
                     }
 
-					if (!skip && !skip1) {
-						geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
-						Building building;
+                    if (!skip && !skip1) {
+                        geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
+                        Building building;
                         building.featureID = featureId;
                         building.year = year;
                         building.tags = tags;
                         building.building = QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(ring, NULL));
-						buildings.append(building);
-					}
+                        buildings.append(building);
+                    }
 
-					skip1 = true;
+                    skip1 = true;
                     tags.clear();
 
                     buildingWays.insert(wayId, factory->createLineString(sequence));
@@ -572,27 +572,27 @@ void MainForm::readBuildingFile() {
                     std::vector<geos::geom::Geometry*> innerHoles = holes
                             .toVector().toStdVector();
 
-					bool skip = true;
-					for (std::size_t i = 0; i < baseSequence->size(); i++) {
-						const geos::geom::Coordinate coord = baseSequence->getAt(i);
-						if (coord.y >= minLat && coord.y <= maxLat
-								&& coord.x >= minLon && coord.x <= maxLon) {
-							skip = false;
-							break;
-						}
-					}
+                    bool skip = true;
+                    for (std::size_t i = 0; i < baseSequence->size(); i++) {
+                        const geos::geom::Coordinate coord = baseSequence->getAt(i);
+                        if (coord.y >= minLat && coord.y <= maxLat
+                                && coord.x >= minLon && coord.x <= maxLon) {
+                            skip = false;
+                            break;
+                        }
+                    }
 
-					if (!skip) {
-						Building building;
+                    if (!skip) {
+                        Building building;
                         building.featureID = featureId;
                         building.year = year;
                         building.tags = tags;
                         building.building = QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(*outerRing, innerHoles));
-						buildings.append(building);
-					}
+                        buildings.append(building);
+                    }
 
-					delete outerRing;
+                    delete outerRing;
                     baseSequence = NULL;
                     holes.clear();
                     tags.clear();
@@ -659,22 +659,22 @@ void MainForm::validateBuildings() {
 }
 
 void MainForm::removeIntersectingBuildings() {
-	for (int i = 0; i < existingBuildings.size(); i++) {
+    for (int i = 0; i < existingBuildings.size(); i++) {
         const Building& existingBuilding = existingBuildings.at(i);
 
         geos::geom::prep::PreparedPolygon polygon(existingBuilding.building
-				.data());
-		for (int j = 0; j < buildings.size(); j++) {
+                .data());
+        for (int j = 0; j < buildings.size(); j++) {
             const Building& building = buildings.at(j);
 
             if (polygon.intersects(building.building.data())) {
-				buildings.removeAt(j);
-				j--;
-			}
-		}
-	}
+                buildings.removeAt(j);
+                j--;
+            }
+        }
+    }
 
-	simplifyBuildings();
+    simplifyBuildings();
 }
 
 void MainForm::simplifyBuildings() {
@@ -721,14 +721,14 @@ void MainForm::simplifyBuildings() {
         }
 
         geos::geom::LinearRing* newLinearRing = factory->createLinearRing(coordinates);
-		std::vector<geos::geom::Geometry*>* innerHoles = new std::vector<geos::geom::Geometry*>();
-		innerHoles->reserve(polygon->getNumInteriorRing());
-		for (std::size_t j = 0; j < polygon->getNumInteriorRing(); j++) {
-			innerHoles->push_back(polygon->getInteriorRingN(j)->clone());
-		}
+        std::vector<geos::geom::Geometry*>* innerHoles = new std::vector<geos::geom::Geometry*>();
+        innerHoles->reserve(polygon->getNumInteriorRing());
+        for (std::size_t j = 0; j < polygon->getNumInteriorRing(); j++) {
+            innerHoles->push_back(polygon->getInteriorRingN(j)->clone());
+        }
         geos::geom::Polygon* newPolygon = factory->createPolygon(newLinearRing, innerHoles);
         building.building = QSharedPointer<geos::geom::Polygon>(newPolygon);
-		buildings[i] = building;
+        buildings[i] = building;
     }
 
     readAddressFile();
@@ -1012,7 +1012,7 @@ void MainForm::mergeAddressBuilding() {
         existingBuildings.removeOne(mergedBuildings.at(i));
     }
 
-	mergeNearbyAddressBuilding();
+    mergeNearbyAddressBuilding();
 }
 
 void MainForm::mergeNearbyAddressBuilding() {
@@ -1021,17 +1021,17 @@ void MainForm::mergeNearbyAddressBuilding() {
         widget->textBrowser->append("Nearby addresses merged into buildings");
     }
 
-	QHash<Address, Building> nearbyAddressBuildings;
+    QHash<Address, Building> nearbyAddressBuildings;
 
-	// At this point, only unmerged buildings and addresses exist in the buildings
-	// and addresses list.
+    // At this point, only unmerged buildings and addresses exist in the buildings
+    // and addresses list.
     for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
         const Building& building = i < buildings.size()
                 ? buildings.at(i)
                 : existingBuildings.at(i - buildings.size());
         double maxDistance = 25;
-		bool addressSet = false;
-		Address setAddress;
+        bool addressSet = false;
+        Address setAddress;
 
         geos::geom::prep::PreparedPolygon polygon(building.building.data());
 
@@ -1039,23 +1039,23 @@ void MainForm::mergeNearbyAddressBuilding() {
             const Address& address = newAddresses.at(j);
 
             double distance = building.building.data()->distance(address
-				.coordinate.data()) * DEGREES_TO_METERS;
+                .coordinate.data()) * DEGREES_TO_METERS;
             if (addressSet && qAbs(maxDistance - distance) < 0.5) {
                 nearbyAddressBuildings.remove(setAddress);
                 break;
             }
             if (distance < maxDistance) {
-				if (addressSet) {
-					nearbyAddressBuildings.remove(setAddress);
-				}
-				// Make sure the address isn't in the building. This was checked
-				// for in the previous method, and if it wasn't merged in there,
-				// then it is because there are multiple addresses in the building
-				// bounds.
+                if (addressSet) {
+                    nearbyAddressBuildings.remove(setAddress);
+                }
+                // Make sure the address isn't in the building. This was checked
+                // for in the previous method, and if it wasn't merged in there,
+                // then it is because there are multiple addresses in the building
+                // bounds.
                 if (!polygon.contains(address.coordinate.data())) {
                     nearbyAddressBuildings.insert(address, building);
                     maxDistance = distance;
-					addressSet = true;
+                    addressSet = true;
                     setAddress = address;
                 } else {
                     break;
@@ -1064,7 +1064,7 @@ void MainForm::mergeNearbyAddressBuilding() {
         }
     }
 
-	QList<Address> mergedAddresses = nearbyAddressBuildings.keys();
+    QList<Address> mergedAddresses = nearbyAddressBuildings.keys();
     for (int i = 0; i < mergedAddresses.size(); i++) {
         Address mergedAddress = mergedAddresses.at(i);
         newAddresses.removeOne(mergedAddress);
@@ -1079,10 +1079,10 @@ void MainForm::mergeNearbyAddressBuilding() {
         buildings.removeOne(mergedBuildings.at(i));
     }
 
-	// Merge the two lists.
-	addressBuildings.unite(nearbyAddressBuildings);
+    // Merge the two lists.
+    addressBuildings.unite(nearbyAddressBuildings);
 
-	outputChangeFile();
+    outputChangeFile();
 }
 
 void MainForm::outputChangeFile() {

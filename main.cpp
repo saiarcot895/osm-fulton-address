@@ -14,15 +14,15 @@ int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
 
-	QStringList arguments = app.arguments();
-	QStringList options;
+    QStringList arguments = app.arguments();
+    QStringList options;
 
-	for (int i = 1; i < arguments.size(); i++) {
-		QString argument = arguments.at(i);
-		if (argument.startsWith("--")) {
-			options.append(argument);
-		}
-	}
+    for (int i = 1; i < arguments.size(); i++) {
+        QString argument = arguments.at(i);
+        if (argument.startsWith("--")) {
+            options.append(argument);
+        }
+    }
 
     MainForm mainForm(options);
     mainForm.show();

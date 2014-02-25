@@ -6,7 +6,7 @@
  */
 
 #ifndef STREET_H
-#define	STREET_H
+#define STREET_H
 
 #include "QString"
 #include "QList"
@@ -22,5 +22,5 @@ public:
     bool operator==(const Street& street) const;
 };
 
-#endif	/* STREET_H */
+#endif /* STREET_H */
 

@@ -21,7 +21,7 @@ Building::Building(const Building& orig) {
     year = orig.year;
     featureID = orig.featureID;
     building = orig.building;
-	nodeIndices = orig.nodeIndices;
+    nodeIndices = orig.nodeIndices;
     tags = orig.tags;
 }
 

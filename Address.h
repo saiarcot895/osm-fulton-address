@@ -6,7 +6,7 @@
  */
 
 #ifndef ADDRESS_H
-#define	ADDRESS_H
+#define ADDRESS_H
 
 #include "Street.h"
 #include <geos/geom/Point.h>
@@ -37,5 +37,5 @@ uint qHash(const Address& key);
 
 bool operator==(const Address& address1, const Address& address2);
 
-#endif	/* ADDRESS_H */
+#endif /* ADDRESS_H */
 

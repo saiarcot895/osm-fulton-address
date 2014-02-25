@@ -6,7 +6,7 @@
  */
 
 #ifndef _MAINFORM_H
-#define	_MAINFORM_H
+#define _MAINFORM_H
 
 #define DEGREES_TO_METERS 111000
 
@@ -45,7 +45,7 @@ private:
     QHash<uint, Node> nodes;
     QHash<int, QSharedPointer<geos::geom::Polygon> > zipCodes;
     QHash<QString, QSharedPointer<Street> > streets;
-	QList<Building> existingBuildings;
+    QList<Building> existingBuildings;
     QList<Building> buildings;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
@@ -56,7 +56,7 @@ private:
         NodePoint,
         Way,
         WayConfirmed,
-		BuildingConfirmed,
+        BuildingConfirmed,
         Relation
     };
 
@@ -64,7 +64,7 @@ private:
     void readZipCodeFile();
     void readBuildingFile();
     void validateBuildings();
-	void removeIntersectingBuildings();
+    void removeIntersectingBuildings();
     void simplifyBuildings();
     void readAddressFile();
     void validateAddresses();
@@ -86,4 +86,4 @@ private slots:
     void readOSM(QNetworkReply* reply);
 };
 
-#endif	/* _MAINFORM_H */
+#endif /* _MAINFORM_H */
