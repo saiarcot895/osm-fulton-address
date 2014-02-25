@@ -778,7 +778,7 @@ void MainForm::readAddressFile() {
                             address.street = closestStreetPointer;
                         }
                     } else if (reader.attributes().value("k") == "addr:city") {
-                        address.city = toTitleCase(reader.attributes().value("v").toString());
+                        //address.city = toTitleCase(reader.attributes().value("v").toString());
                     } else if (reader.attributes().value("k") == "addr:postcode") {
                         address.zipCode = reader.attributes().value("v").toString().toInt();
                     } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
