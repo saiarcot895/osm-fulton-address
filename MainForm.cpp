@@ -714,7 +714,9 @@ void MainForm::simplifyBuildings() {
                 geos::algorithm::Angle::angleBetween(before,
                     current, after));
 
-            if (qAbs(headingDiff - 180) < 5) {
+            // In the first case, the line is effectively going back on itself.
+            // In the second case, it's effectively a straight line.
+            if (headingDiff < 1 || qAbs(headingDiff - 180) < 5) {
                 coordinates->deleteAt(j);
                 j--;
             }
