@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>605</width>
-    <height>565</height>
+    <width>627</width>
+    <height>592</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -251,46 +251,6 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="2">
-            <widget class="QCheckBox" name="checkBox_4">
-             <property name="text">
-              <string>Addresses Close to Another Address</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QCheckBox" name="checkBox_5">
-             <property name="text">
-              <string>Addresses Too Far From Street</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="2">
-            <widget class="QCheckBox" name="checkBox_6">
-             <property name="text">
-              <string>Addresses Too Close To Street</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="0">
-            <widget class="QCheckBox" name="checkBox_7">
-             <property name="text">
-              <string>New Addresses From Data (after validation)</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
            <item row="1" column="0">
             <widget class="QCheckBox" name="checkBox_8">
              <property name="text">
@@ -311,17 +271,7 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
-            <widget class="QCheckBox" name="checkBox_3">
-             <property name="text">
-              <string>New Addresses From Data (before validation)</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="0">
+           <item row="5" column="2">
             <widget class="QCheckBox" name="checkBox_10">
              <property name="text">
               <string>Merged Addresses and Buildings</string>
@@ -331,10 +281,70 @@
              </property>
             </widget>
            </item>
-           <item row="4" column="2">
+           <item row="5" column="0">
             <widget class="QCheckBox" name="checkBox_11">
              <property name="text">
               <string>Addresses Not WIthin Zipcode Areas</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="2">
+            <widget class="QCheckBox" name="checkBox_7">
+             <property name="text">
+              <string>New Addresses From Data (after validation)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QCheckBox" name="checkBox_6">
+             <property name="text">
+              <string>Addresses Too Close To Street</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="2">
+            <widget class="QCheckBox" name="checkBox_5">
+             <property name="text">
+              <string>Addresses Too Far From Street</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="checkBox_4">
+             <property name="text">
+              <string>Addresses Close to Another Address</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QCheckBox" name="checkBox_3">
+             <property name="text">
+              <string>New Addresses From Data (before validation)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QCheckBox" name="checkBox_12">
+             <property name="text">
+              <string>Addresses in Area, But No Street</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -411,11 +421,6 @@
   <tabstop>checkBox_2</tabstop>
   <tabstop>checkBox_8</tabstop>
   <tabstop>checkBox_9</tabstop>
-  <tabstop>checkBox_3</tabstop>
-  <tabstop>checkBox_4</tabstop>
-  <tabstop>checkBox_5</tabstop>
-  <tabstop>checkBox_6</tabstop>
-  <tabstop>checkBox_7</tabstop>
   <tabstop>pushButton_2</tabstop>
   <tabstop>textBrowser</tabstop>
  </tabstops>

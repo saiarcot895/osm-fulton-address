@@ -742,6 +742,11 @@ void MainForm::readAddressFile() {
         return;
     }
 
+    if (widget->checkBox_12->isChecked()) {
+        widget->textBrowser->append("");
+        widget->textBrowser->append("Addresses in Area, But No Street");
+    }
+
     QXmlStreamReader reader(&file);
     Address address;
     bool skip = false;
@@ -776,6 +781,14 @@ void MainForm::readAddressFile() {
                                 }
                             }
                             address.street = closestStreetPointer;
+                        } else {
+                            address.street = QSharedPointer<Street>(new Street());
+                            address.street.data()->name = toTitleCase(streetName);
+                            if (widget->checkBox_12->isChecked()) {
+                                widget->textBrowser->append(address.houseNumber + " " + address.street.data()->name);
+                            }
+                            excludedAddresses.append(address);
+                            skip = true;
                         }
                     } else if (reader.attributes().value("k") == "addr:city") {
                         //address.city = toTitleCase(reader.attributes().value("v").toString());
