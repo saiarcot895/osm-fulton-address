@@ -886,7 +886,7 @@ void MainForm::validateAddresses() {
         widget->textBrowser->append("");
         widget->textBrowser->append("New Addresses (after validation):");
         for (int i = 0; i < newAddresses.size(); i++) {
-            Address address = newAddresses.at(i);
+            const Address& address = newAddresses.at(i);
             widget->textBrowser->append(address.houseNumber + " " + address.street.data()->name);
         }
     }
@@ -906,7 +906,7 @@ void MainForm::validateBetweenAddresses() {
         double maxLat = minLat - latSection;
 
         for (int i = 0; i < newAddresses.size(); i++) {
-            Address address1 = newAddresses.at(i);
+            const Address& address1 = newAddresses.at(i);
             const geos::geom::Coordinate* coordinate1 = address1.coordinate.data()->getCoordinate();
             if (!(coordinate1->x <= maxLon && coordinate1->x >= minLon
                     && coordinate1->y >= maxLat && coordinate1->y <= minLat)) {
@@ -914,14 +914,14 @@ void MainForm::validateBetweenAddresses() {
             }
 
             for (int j = i + 1; j < newAddresses.size(); j++) {
-                Address address2 = newAddresses.at(j);
+                const Address& address2 = newAddresses.at(j);
                 const geos::geom::Coordinate* coordinate2 = address2.coordinate.data()->getCoordinate();
                 if (!(coordinate2->x <= maxLon && coordinate2->x >= minLon
                         && coordinate2->y >= maxLat && coordinate2->y <= minLat)) {
                     continue;
                 }
 
-                double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * 111000;
+                double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * DEGREES_TO_METERS;
 
                 if (distance < 4) {
                     if (widget->checkBox_4->isChecked()) {
