@@ -923,7 +923,7 @@ void MainForm::validateBetweenAddresses() {
 
                 double distance = address1.coordinate.data()->distance(address2.coordinate.data()) * DEGREES_TO_METERS;
 
-                if (distance < 4) {
+                if (distance < 3) {
                     if (widget->checkBox_4->isChecked()) {
                         widget->textBrowser->append(tr("Too close to another address: %1 %2")
                                 .arg(address2.houseNumber).arg(address2.street.data()->name));
