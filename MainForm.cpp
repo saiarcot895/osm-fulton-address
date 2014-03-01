@@ -914,7 +914,7 @@ void MainForm::validateBetweenAddresses() {
             }
 
             for (int j = i + 1; j < newAddresses.size(); j++) {
-                const Address& address2 = newAddresses.at(j);
+                Address address2 = newAddresses.at(j);
                 const geos::geom::Coordinate* coordinate2 = address2.coordinate.data()->getCoordinate();
                 if (!(coordinate2->x <= maxLon && coordinate2->x >= minLon
                         && coordinate2->y >= maxLat && coordinate2->y <= minLat)) {
