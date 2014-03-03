@@ -1053,10 +1053,6 @@ void MainForm::mergeNearbyAddressBuilding() {
 
             double distance = building.building().data()->distance(address
                 .coordinate().data()) * DEGREES_TO_METERS;
-            if (addressSet && qAbs(maxDistance - distance) < 0.5) {
-                nearbyAddressBuildings.remove(setAddress);
-                break;
-            }
             if (distance < maxDistance) {
                 if (addressSet) {
                     nearbyAddressBuildings.remove(setAddress);
