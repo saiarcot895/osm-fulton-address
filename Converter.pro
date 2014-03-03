@@ -25,7 +25,10 @@ HEADERS  += \
     Building.h \
     MainForm.h \
     Street.h \
-    node.h
+    node.h \
+    AddressPrivate.h \
+    StreetPrivate.h \
+    BuildingPrivate.h
 
 FORMS += \
     MainForm.ui

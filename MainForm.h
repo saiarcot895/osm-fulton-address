@@ -10,10 +10,6 @@
 
 #define DEGREES_TO_METERS 111000
 
-#include "Street.h"
-#include "Address.h"
-#include "Building.h"
-#include "node.h"
 #include <geos/geom/GeometryFactory.h>
 #include <QMainWindow>
 #include "QtNetwork/QNetworkAccessManager"
@@ -24,6 +20,11 @@
 namespace Ui {
 class mainForm;
 }
+
+class Street;
+class Address;
+class Building;
+class Node;
 
 class MainForm : public QMainWindow {
     Q_OBJECT
@@ -44,7 +45,7 @@ private:
     geos::geom::GeometryFactory* factory;
     QHash<uint, Node> nodes;
     QHash<int, QSharedPointer<geos::geom::Polygon> > zipCodes;
-    QHash<QString, QSharedPointer<Street> > streets;
+    QHash<QString, Street> streets;
     QList<Building> existingBuildings;
     QList<Building> buildings;
     QList<Address> existingAddresses;
