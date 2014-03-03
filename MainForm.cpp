@@ -791,7 +791,7 @@ void MainForm::readAddressFile() {
                             skip = true;
                         }
                     } else if (reader.attributes().value("k") == "addr:city") {
-                        //address.city = toTitleCase(reader.attributes().value("v").toString());
+                        address.city = toTitleCase(reader.attributes().value("v").toString());
                     } else if (reader.attributes().value("k") == "addr:postcode") {
                         address.setZipCode(reader.attributes().value("v").toString().toInt());
                     } else if (reader.attributes().value("k") == "import:FEAT_TYPE") {
