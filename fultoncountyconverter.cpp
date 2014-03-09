@@ -33,16 +33,16 @@ void FultonCountyConverter::setBoundingBox(double top, double left, double botto
     this->right = right;
 }
 
-void FultonCountyConverter::setAddresses(QFile& addressesFile) {
-    this->addressesFile.setFileName(addressesFile.fileName());
+void FultonCountyConverter::setAddresses(QString addressesFile) {
+    this->addressesFile.setFileName(addressesFile);
 }
 
-void FultonCountyConverter::setBuildings(QFile& buildingsFile) {
-    this->buildingsFile.setFileName(buildingsFile.fileName());
+void FultonCountyConverter::setBuildings(QString buildingsFile) {
+    this->buildingsFile.setFileName(buildingsFile);
 }
 
-void FultonCountyConverter::setZipCodes(QFile& zipCodesFile) {
-    this->zipCodesFile.setFileName(zipCodesFile.fileName());
+void FultonCountyConverter::setZipCodes(QString zipCodesFile) {
+    this->zipCodesFile.setFileName(zipCodesFile);
 }
 
 void FultonCountyConverter::setLogOptions(Logging logOptions) {

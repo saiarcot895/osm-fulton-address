@@ -19,7 +19,8 @@ SOURCES += main.cpp\
     MainForm.cpp \
     Street.cpp \
     node.cpp \
-    fultoncountyconverter.cpp
+    fultoncountyconverter.cpp \
+    mainconsole.cpp
 
 HEADERS  += \
     Address.h \
@@ -30,7 +31,8 @@ HEADERS  += \
     AddressPrivate.h \
     StreetPrivate.h \
     BuildingPrivate.h \
-    fultoncountyconverter.h
+    fultoncountyconverter.h \
+    mainconsole.h
 
 FORMS += \
     MainForm.ui

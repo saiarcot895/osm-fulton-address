@@ -7,6 +7,7 @@
 
 #include <QApplication>
 #include "MainForm.h"
+#include "mainconsole.h"
 
 int main(int argc, char *argv[]) {
     // initialize resources, if needed
@@ -17,15 +18,25 @@ int main(int argc, char *argv[]) {
     QStringList arguments = app.arguments();
     QStringList options;
 
+    bool automated = false;
     for (int i = 1; i < arguments.size(); i++) {
         QString argument = arguments.at(i);
         if (argument.startsWith("--")) {
             options.append(argument);
         }
+        if (argument.startsWith("--auto")) {
+            automated = true;
+        }
     }
 
-    MainForm mainForm(options);
-    mainForm.show();
+    if (automated) {
+        MainConsole mainConsole(options);
 
-    return app.exec();
+        return app.exec();
+    } else {
+        MainForm mainForm(options);
+        mainForm.show();
+
+        return app.exec();
+    }
 }

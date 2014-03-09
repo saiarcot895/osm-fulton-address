@@ -36,9 +36,9 @@ public:
     };
 
     void setBoundingBox(double top, double left, double bottom, double right);
-    void setAddresses(QFile& addressesFile);
-    void setBuildings(QFile& buildingsFile);
-    void setZipCodes(QFile& zipCodesFile);
+    void setAddresses(QString addressesFile);
+    void setBuildings(QString buildingsFile);
+    void setZipCodes(QString zipCodesFile);
     void setLogOptions(Logging logOptions);
 
     void convert();

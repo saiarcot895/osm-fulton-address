@@ -50,10 +50,6 @@ MainForm::MainForm(QStringList options, QWidget *parent) :
                 widget->doubleSpinBox_2->setValue(coords.at(1).toDouble());
                 widget->doubleSpinBox_3->setValue(coords.at(2).toDouble());
                 widget->doubleSpinBox_4->setValue(coords.at(3).toDouble());
-            } else if (variable == "execute") {
-                if (!widget->lineEdit->text().isEmpty()) {
-                    convert();
-                }
             }
         }
     }
@@ -107,10 +103,6 @@ void MainForm::convert() {
     widget->tabWidget->setCurrentIndex(1);
     qApp->processEvents();
 
-    QFile addresses(widget->lineEdit->text());
-    QFile buildings(widget->lineEdit_4->text());
-    QFile zipCodes(widget->lineEdit_3->text());
-
     FultonCountyConverter::Logging logOptions(FultonCountyConverter::NoLogging);
 
     if (widget->checkBox->isChecked()) {
@@ -152,9 +144,9 @@ void MainForm::convert() {
 
     converter->setBoundingBox(widget->doubleSpinBox->value(), widget->doubleSpinBox_2->value(),
                              widget->doubleSpinBox_3->value(), widget->doubleSpinBox_4->value());
-    converter->setAddresses(addresses);
-    converter->setBuildings(buildings);
-    converter->setZipCodes(zipCodes);
+    converter->setAddresses(widget->lineEdit->text());
+    converter->setBuildings(widget->lineEdit_4->text());
+    converter->setZipCodes(widget->lineEdit_3->text());
     converter->setLogOptions(logOptions);
     converter->convert();
 
