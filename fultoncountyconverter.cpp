@@ -604,7 +604,7 @@ void FultonCountyConverter::simplifyBuildings() {
         Building building = buildings.at(i);
         geos::geom::Polygon* polygon = building.building().data();
 
-        if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 5) {
+        if (polygon->getArea() * DEGREES_TO_METERS * DEGREES_TO_METERS < 10) {
             buildings.removeAt(i);
             i--;
             continue;
