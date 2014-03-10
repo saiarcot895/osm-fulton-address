@@ -976,22 +976,23 @@ void FultonCountyConverter::mergeNearbyAddressBuilding() {
             double distance = building.building().data()->distance(address
                 .coordinate().data()) * DEGREES_TO_METERS;
             if (distance < maxDistance) {
-                if (addressSet) {
-                    nearbyAddressBuildings.remove(setAddress);
-                }
                 // Make sure the address isn't in the building. This was checked
                 // for in the previous method, and if it wasn't merged in there,
                 // then it is because there are multiple addresses in the building
                 // bounds.
                 if (!polygon.contains(address.coordinate().data())) {
-                    nearbyAddressBuildings.insert(address, building);
                     maxDistance = distance;
                     addressSet = true;
                     setAddress = address;
                 } else {
+                    addressSet = false;
                     break;
                 }
             }
+        }
+
+        if (addressSet && !nearbyAddressBuildings.contains(setAddress)) {
+            nearbyAddressBuildings.insert(setAddress, building);
         }
     }
 
