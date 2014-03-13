@@ -481,6 +481,15 @@ void FultonCountyConverter::readBuildingFile() {
                         building.setBuilding(QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(ring, NULL)));
                         buildings.append(building);
+
+                        const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                        buildingsTree.insert(min, max, building);
+
+                        delete min;
+                        delete max;
                     }
 
                     skip1 = true;
@@ -512,6 +521,15 @@ void FultonCountyConverter::readBuildingFile() {
                         building.setBuilding(QSharedPointer<geos::geom::Polygon>
                             (factory->createPolygon(*outerRing, innerHoles)));
                         buildings.append(building);
+
+                        const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                        buildingsTree.insert(min, max, building);
+
+                        delete min;
+                        delete max;
                     }
 
                     delete outerRing;
@@ -545,12 +563,22 @@ void FultonCountyConverter::validateBuildings() {
         output = output % newline;
         output = output % QStringLiteral("Removed Overlapping Buildings: ") % newline;
     }
-    for (int i = 0; i < buildings.size(); i++) {
+    for (int i = 0; i < buildings.size(); ++i) {
         const Building& building1 = buildings.at(i);
 
         geos::geom::prep::PreparedPolygon polygon(building1.building().data());
-        for (int j = i + 1; j < buildings.size(); j++) {
-            const Building& building2 = buildings.at(j);
+
+        const geos::geom::Envelope* envelope = building1.building().data()->getEnvelopeInternal();
+        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+        QList<Building> nearbyBuildings = buildingsTree.search(min, max, NULL, NULL);
+
+        for (int j = 0; j < nearbyBuildings.size(); ++j) {
+            Building building2 = nearbyBuildings.at(j);
+            if (building1 == building2) {
+                continue;
+            }
 
             if (polygon.intersects(building2.building().data())) {
                 if (building1.year() >= building2.year()) {
@@ -560,8 +588,16 @@ void FultonCountyConverter::validateBuildings() {
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
-                    buildings.removeAt(j);
-                    j--;
+                    buildings.removeOne(building2);
+
+                    const geos::geom::Envelope* envelope2 = building2.building().data()->getEnvelopeInternal();
+                    double* min2 = new double[2] {envelope2->getMinX(), envelope2->getMinY()};
+                    double* max2 = new double[2] {envelope2->getMaxX(), envelope2->getMaxY()};
+
+                    buildingsTree.remove(min, max, building2);
+
+                    delete min2;
+                    delete max2;
                 } else {
                     if (logOptions & OverlappingBuildings) {
                         const geos::geom::Coordinate* centroid = building1.building()
@@ -569,28 +605,38 @@ void FultonCountyConverter::validateBuildings() {
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
-                    buildings.removeAt(i);
-                    i--;
+                    buildings.removeOne(building1);
+                    buildingsTree.remove(min, max, building1);
                     break;
                 }
             }
         }
+
+        delete min;
+        delete max;
     }
 
-    removeIntersectingBuildings();
+    removeExistingIntersectingBuildings();
 }
 
-void FultonCountyConverter::removeIntersectingBuildings() {
+void FultonCountyConverter::removeExistingIntersectingBuildings() {
     for (int i = 0; i < existingBuildings.size(); i++) {
         const Building& existingBuilding = existingBuildings.at(i);
 
         geos::geom::prep::PreparedPolygon polygon(existingBuilding.building()
                 .data());
         for (int j = 0; j < buildings.size(); j++) {
-            const Building& building = buildings.at(j);
+            Building building = buildings.at(j);
 
             if (polygon.intersects(building.building().data())) {
                 buildings.removeAt(j);
+
+                const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                buildingsTree.remove(min, max, building);
+
                 j--;
             }
         }
@@ -735,6 +781,16 @@ void FultonCountyConverter::readAddressFile() {
                             int i = newAddresses.indexOf(address);
                             if (i != -1) {
                                 Address existingAddress = newAddresses.at(i);
+
+                                const geos::geom::Envelope* envelope = existingAddress.coordinate()->getEnvelopeInternal();
+                                double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                                double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                                addressesTree.remove(min, max, existingAddress);
+
+                                delete min;
+                                delete max;
+
                                 if (existingAddress.addressType() == Address::Structural
                                         && address.addressType() == Address::Structural) {
                                     existingAddress.setAllowStructural(false);
@@ -749,9 +805,28 @@ void FultonCountyConverter::readAddressFile() {
                                     existingAddress.setCoordinate(address.coordinate());
                                     existingAddress.setAddressType(Address::Primary);
                                 }
+
+                                envelope = existingAddress.coordinate()->getEnvelopeInternal();
+                                min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                                max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                                addressesTree.insert(min, max, existingAddress);
+
+                                delete min;
+                                delete max;
+
                                 newAddresses.replace(i, existingAddress);
                             } else {
                                 newAddresses.append(address);
+
+                                const geos::geom::Envelope* envelope = address.coordinate()->getEnvelopeInternal();
+                                double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                                double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                                addressesTree.insert(min, max, address);
+
+                                delete min;
+                                delete max;
                             }
                         }
                     }
@@ -788,6 +863,13 @@ void FultonCountyConverter::validateAddresses() {
                         .arg(address.street().name()) % newline;
             }
             newAddresses.removeOne(address);
+
+            const geos::geom::Envelope* envelope = address.coordinate()->getEnvelopeInternal();
+            double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+            double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+            addressesTree.remove(min, max, address);
+
             excludedAddresses.append(address);
             i--;
         } else if (distance < 5) {
@@ -796,6 +878,13 @@ void FultonCountyConverter::validateAddresses() {
                         .arg(address.street().name()) % newline;
             }
             newAddresses.removeOne(address);
+
+            const geos::geom::Envelope* envelope = address.coordinate()->getEnvelopeInternal();
+            double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+            double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+            addressesTree.remove(min, max, address);
+
             excludedAddresses.append(address);
             i--;
         }
@@ -815,43 +904,39 @@ void FultonCountyConverter::validateAddresses() {
 }
 
 void FultonCountyConverter::validateBetweenAddresses() {
-    int sections = 2;
-    double lonSection = (right - left) / sections;
-    double latSection = (top - bottom) / sections;
+    for (int i = 0; i < newAddresses.size(); i++) {
+        const Address& address1 = newAddresses.at(i);
 
-    for (int region = 0; region < sections * sections; region++) {
-        double minLon = left + (region % sections) * lonSection;
-        double minLat = top - (region / sections) * latSection;
-        double maxLon = minLon + lonSection;
-        double maxLat = minLat - latSection;
+        geos::geom::Envelope envelope(*address1.coordinate()->getEnvelopeInternal());
+        envelope.expandBy(3.0 / DEGREES_TO_METERS);
+        double* min = new double[2] {envelope.getMinX(), envelope.getMinY()};
+        double* max = new double[2] {envelope.getMaxX(), envelope.getMaxY()};
 
-        for (int i = 0; i < newAddresses.size(); i++) {
-            const Address& address1 = newAddresses.at(i);
-            const geos::geom::Coordinate* coordinate1 = address1.coordinate().data()->getCoordinate();
-            if (!(coordinate1->x <= maxLon && coordinate1->x >= minLon
-                    && coordinate1->y >= maxLat && coordinate1->y <= minLat)) {
+        QList<Address> addresses = addressesTree.search(min, max, NULL, NULL);
+
+        for (int j = 0; j < addresses.size(); ++j) {
+            Address address2 = addresses.at(j);
+
+            if (address1 == address2) {
                 continue;
             }
 
-            for (int j = i + 1; j < newAddresses.size(); j++) {
-                Address address2 = newAddresses.at(j);
-                const geos::geom::Coordinate* coordinate2 = address2.coordinate().data()->getCoordinate();
-                if (!(coordinate2->x <= maxLon && coordinate2->x >= minLon
-                        && coordinate2->y >= maxLat && coordinate2->y <= minLat)) {
-                    continue;
-                }
+            double distance = address1.coordinate().data()->distance(address2.coordinate().data()) * DEGREES_TO_METERS;
 
-                double distance = address1.coordinate().data()->distance(address2.coordinate().data()) * DEGREES_TO_METERS;
-
-                if (distance < 3) {
-                    if (logOptions & CloseAddresses) {
-                        output = output % QString("Too close to another address: %1 %2")
-                                .arg(address2.houseNumber()).arg(address2.street().name()) % newline;
-                    }
-                    newAddresses.removeOne(address2);
-                    excludedAddresses.append(address2);
-                    j--;
+            if (distance < 3) {
+                if (logOptions & CloseAddresses) {
+                    output = output % QString("Too close to another address: %1 %2")
+                            .arg(address2.houseNumber()).arg(address2.street().name()) % newline;
                 }
+                newAddresses.removeOne(address2);
+
+                const geos::geom::Envelope* envelope2 = address2.coordinate()->getEnvelopeInternal();
+                double* min2 = new double[2] {envelope2->getMinX(), envelope2->getMinY()};
+                double* max2 = new double[2] {envelope2->getMaxX(), envelope2->getMaxY()};
+
+                addressesTree.remove(min2, max2, address2);
+
+                excludedAddresses.append(address2);
             }
         }
     }
@@ -859,7 +944,7 @@ void FultonCountyConverter::validateBetweenAddresses() {
 
 void FultonCountyConverter::checkZipCodes() {
     if (zipCodes.size() == 0) {
-        mergeAddressBuilding();
+        mergeAddressBuildingTree();
         return;
     }
 
@@ -882,21 +967,19 @@ void FultonCountyConverter::checkZipCodes() {
         }
     }
 
-    mergeAddressBuilding();
+    mergeAddressBuildingTree();
 }
 
-void FultonCountyConverter::mergeAddressBuilding() {
+void FultonCountyConverter::mergeAddressBuildingTree() {
     if (logOptions & MergedAddressesAndBuilding) {
         output = output % newline;
         output = output % QStringLiteral("Addresses merged into buildings") % newline;
     }
 
     for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
-        const Building& building = i < buildings.size()
+        Building building = i < buildings.size()
                 ? buildings.at(i)
                 : existingBuildings.at(i - buildings.size());
-        bool addressSet = false;
-        Address setAddress;
 
         bool unaddressedBuilding = true;
         QList<QString> keys = building.tags().keys();
@@ -910,24 +993,51 @@ void FultonCountyConverter::mergeAddressBuilding() {
             continue;
         }
 
-        geos::geom::prep::PreparedPolygon polygon(building.building().data());
+        geos::geom::Envelope envelope = geos::geom::Envelope(*building.building()->getEnvelopeInternal());
+        envelope.expandBy(20.0 / DEGREES_TO_METERS);
 
-        for (int j = 0; j < newAddresses.size(); j++) {
-            const Address& address = newAddresses.at(j);
+        double* min = new double[2] {envelope.getMinX(), envelope.getMinY()};
+        double* max = new double[2] {envelope.getMaxX(), envelope.getMaxY()};
 
-            if (polygon.contains(address.coordinate().data())) {
-                if (!addressSet) {
-                    setAddress = address;
-                    addressSet = true;
+        QList<Address> innerAddresses = addressesTree.search(min, max, NULL, NULL);
+
+        delete min;
+        delete max;
+
+        bool hasInnerAddress = false;
+        Address innerAddress;
+        bool hasBestAddress = false;
+        Address bestAddress;
+        double maxDistance = 25;
+        for (int j = 0; j < innerAddresses.size(); ++j) {
+            Address address = innerAddresses.at(j);
+            if (addressBuildings.contains(address)) {
+                continue;
+            }
+            if (building.building().data()->contains(address.coordinate().data())) {
+                if (!hasInnerAddress) {
+                    hasInnerAddress = true;
+                    innerAddress = address;
                 } else {
-                    addressSet = false;
+                    hasInnerAddress = false;
+                    hasBestAddress = false;
                     break;
+                }
+            } else if (!hasInnerAddress) {
+                double distance = building.building().data()->distance(
+                            address.coordinate().data()) * DEGREES_TO_METERS;
+                if (distance < maxDistance) {
+                    maxDistance = distance;
+                    hasBestAddress = true;
+                    bestAddress = address;
                 }
             }
         }
 
-        if (addressSet) {
-            addressBuildings.insert(setAddress, building);
+        if (hasInnerAddress) {
+            addressBuildings.insert(innerAddress, building);
+        } else if (hasBestAddress) {
+            addressBuildings.insert(bestAddress, building);
         }
     }
 
@@ -946,73 +1056,6 @@ void FultonCountyConverter::mergeAddressBuilding() {
         buildings.removeOne(mergedBuildings.at(i));
         existingBuildings.removeOne(mergedBuildings.at(i));
     }
-
-    mergeNearbyAddressBuilding();
-}
-
-void FultonCountyConverter::mergeNearbyAddressBuilding() {
-    if (logOptions & MergedAddressesAndBuilding) {
-        output = output % newline;
-        output = output % QStringLiteral("Nearby addresses merged into buildings") % newline;
-    }
-
-    QHash<Address, Building> nearbyAddressBuildings;
-
-    // At this point, only unmerged buildings and addresses exist in the buildings
-    // and addresses list.
-    for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
-        const Building& building = i < buildings.size()
-                ? buildings.at(i)
-                : existingBuildings.at(i - buildings.size());
-        double maxDistance = 25;
-        bool addressSet = false;
-        Address setAddress;
-
-        geos::geom::prep::PreparedPolygon polygon(building.building().data());
-
-        for (int j = 0; j < newAddresses.size(); j++) {
-            const Address& address = newAddresses.at(j);
-
-            double distance = building.building().data()->distance(address
-                .coordinate().data()) * DEGREES_TO_METERS;
-            if (distance < maxDistance) {
-                // Make sure the address isn't in the building. This was checked
-                // for in the previous method, and if it wasn't merged in there,
-                // then it is because there are multiple addresses in the building
-                // bounds.
-                if (!polygon.contains(address.coordinate().data())) {
-                    maxDistance = distance;
-                    addressSet = true;
-                    setAddress = address;
-                } else {
-                    addressSet = false;
-                    break;
-                }
-            }
-        }
-
-        if (addressSet && !nearbyAddressBuildings.contains(setAddress)) {
-            nearbyAddressBuildings.insert(setAddress, building);
-        }
-    }
-
-    QList<Address> mergedAddresses = nearbyAddressBuildings.keys();
-    for (int i = 0; i < mergedAddresses.size(); i++) {
-        Address mergedAddress = mergedAddresses.at(i);
-        newAddresses.removeOne(mergedAddress);
-        if (logOptions & MergedAddressesAndBuilding) {
-            output = output % QString("%1 %2").arg(mergedAddress.houseNumber(),
-                    mergedAddress.street().name()) % newline;
-        }
-    }
-
-    QList<Building> mergedBuildings = nearbyAddressBuildings.values();
-    for (int i = 0; i < mergedBuildings.size(); i++) {
-        buildings.removeOne(mergedBuildings.at(i));
-    }
-
-    // Merge the two lists.
-    addressBuildings.unite(nearbyAddressBuildings);
 
     emit conversionFinished();
 }
@@ -1455,6 +1498,8 @@ void FultonCountyConverter::cleanup() {
     excludedAddresses.clear();
     addressBuildings.clear();
     zipCodes.clear();
+    addressesTree.removeAll();
+    buildingsTree.removeAll();
 }
 
 QString FultonCountyConverter::expandQuadrant(QString street) {

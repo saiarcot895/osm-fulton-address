@@ -32,7 +32,8 @@ HEADERS  += \
     StreetPrivate.h \
     BuildingPrivate.h \
     fultoncountyconverter.h \
-    mainconsole.h
+    mainconsole.h \
+    rtree.h
 
 FORMS += \
     MainForm.ui

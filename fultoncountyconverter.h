@@ -6,6 +6,7 @@
 #include "Building.h"
 #include "Address.h"
 #include "node.h"
+#include "rtree.h"
 #include <QFile>
 #include <QNetworkAccessManager>
 #include <QXmlStreamWriter>
@@ -61,6 +62,9 @@ private:
     QList<Address> excludedAddresses;
     QHash<Address, Building> addressBuildings;
 
+    RTree<Building, double, 2> buildingsTree;
+    RTree<Address, double, 2> addressesTree;
+
     QString newline;
 
     enum FeatureType {
@@ -88,14 +92,13 @@ private:
     void readZipCodeFile();
     void readBuildingFile();
     void validateBuildings();
-    void removeIntersectingBuildings();
+    void removeExistingIntersectingBuildings();
     void simplifyBuildings();
     void readAddressFile();
     void validateAddresses();
     void validateBetweenAddresses();
     void checkZipCodes();
-    void mergeAddressBuilding();
-    void mergeNearbyAddressBuilding();
+    void mergeAddressBuildingTree();
     void writeXMLFile(QFile& file,
             const QList<Address> address,
             const QList<Building> buildings,
