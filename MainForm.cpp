@@ -27,6 +27,7 @@ MainForm::MainForm(QWidget *parent) :
     connect(widget->pushButton_3, SIGNAL(clicked()), this, SLOT(setOutputFile()));
     connect(widget->pushButton_4, SIGNAL(clicked()), this, SLOT(setZipCodeFile()));
     connect(widget->pushButton_5, SIGNAL(clicked()), this, SLOT(setBuildingFile()));
+    connect(widget->pushButton_6, SIGNAL(clicked()), this, SLOT(setTaxParcelsFile()));
 }
 
 MainForm::MainForm(QStringList options, QWidget *parent) :
@@ -44,6 +45,8 @@ MainForm::MainForm(QStringList options, QWidget *parent) :
                 widget->lineEdit_2->setText(params.at(1));
             } else if (variable == "zip-code") {
                 widget->lineEdit_3->setText(params.at(1));
+            } else if (variable == "tax-parcel") {
+                widget->lineEdit_5->setText(params.at(1));
             } else if (variable == "bbox") {
                 QStringList coords = params.at(1).split(",");
                 widget->doubleSpinBox->setValue(coords.at(0).toDouble());
@@ -78,6 +81,13 @@ void MainForm::setBuildingFile() {
     QString fileName = openFile();
     if (!fileName.isEmpty()) {
         widget->lineEdit_4->setText(fileName);
+    }
+}
+
+void MainForm::setTaxParcelsFile() {
+    QString fileName = openFile();
+    if (!fileName.isEmpty()) {
+        widget->lineEdit_5->setText(fileName);
     }
 }
 
@@ -146,6 +156,7 @@ void MainForm::convert() {
                              widget->doubleSpinBox_3->value(), widget->doubleSpinBox_4->value());
     converter->setAddresses(widget->lineEdit->text());
     converter->setBuildings(widget->lineEdit_4->text());
+    converter->setTaxParcels(widget->lineEdit_5->text());
     converter->setZipCodes(widget->lineEdit_3->text());
     converter->setLogOptions(logOptions);
     converter->convert();

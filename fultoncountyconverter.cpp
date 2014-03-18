@@ -41,6 +41,10 @@ void FultonCountyConverter::setBuildings(QString buildingsFile) {
     this->buildingsFile.setFileName(buildingsFile);
 }
 
+void FultonCountyConverter::setTaxParcels(QString taxParcelsFile) {
+    this->taxParcelsFile.setFileName(taxParcelsFile);
+}
+
 void FultonCountyConverter::setZipCodes(QString zipCodesFile) {
     this->zipCodesFile.setFileName(zipCodesFile);
 }
@@ -197,6 +201,15 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                 building.setBuilding(QSharedPointer<geos::geom::Polygon>(factory
                         ->createPolygon(ring, NULL)));
                 existingBuildings.replace(i, building);
+
+                const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                buildingsTree.insert(min, max, building);
+
+                delete min;
+                delete max;
             } catch (...) {
                 qDebug() << "Building skipped";
                 existingBuildings.removeAt(i);
@@ -944,7 +957,7 @@ void FultonCountyConverter::validateBetweenAddresses() {
 
 void FultonCountyConverter::checkZipCodes() {
     if (zipCodes.size() == 0) {
-        mergeAddressBuildingTree();
+        readTaxParcels();
         return;
     }
 
@@ -965,6 +978,223 @@ void FultonCountyConverter::checkZipCodes() {
             address.setZipCode(0);
             newAddresses[i] = address;
         }
+    }
+
+    readTaxParcels();
+}
+
+void FultonCountyConverter::readTaxParcels() {
+    if (taxParcelsFile.fileName().isEmpty()) {
+        mergeAddressBuildingTree();
+        return;
+    }
+
+    if (!taxParcelsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qCritical() << "Error: Couldn't open " << taxParcelsFile.fileName();
+        mergeAddressBuildingTree();
+        return;
+    }
+
+    QHash<qlonglong, geos::geom::Point*> taxParcelsNodes;
+    QHash<qlonglong, geos::geom::LineString*> taxParcelsWays;
+
+    QXmlStreamReader reader(&taxParcelsFile);
+    qlonglong wayId;
+    QString featureId;
+    geos::geom::CoordinateSequence* baseSequence = NULL;
+    QList<geos::geom::Geometry*> holes;
+    QList<geos::geom::Coordinate> coordinates;
+    while (!reader.atEnd()) {
+        switch (reader.readNext()) {
+            case QXmlStreamReader::StartElement:
+                if (reader.name().toString() == "node") {
+                    geos::geom::Coordinate coordinate;
+                    coordinate.y = reader.attributes().value("lat").toString().toDouble();
+                    coordinate.x = reader.attributes().value("lon").toString().toDouble();
+                    qlonglong nodeId = reader.attributes().value("id").toString().toLongLong();
+                    taxParcelsNodes.insert(nodeId, factory->createPoint(coordinate));
+                } else if (reader.name().toString() == "way") {
+                    wayId = reader.attributes().value("id").toString().toLongLong();
+                } else if (reader.name().toString() == "member") {
+                    if (reader.attributes().value("role").toString() == "outer") {
+                        geos::geom::CoordinateSequence* sequence = taxParcelsWays
+                                .value(reader.attributes().value("ref").toString().toLongLong())
+                                ->getCoordinates();
+                        if (baseSequence == NULL) {
+                            baseSequence = sequence;
+                        } else {
+                            if (sequence->size() > baseSequence->size()) {
+                                baseSequence = sequence;
+                            }
+                        }
+                    } else if (reader.attributes().value("role").toString() == "inner") {
+                        geos::geom::CoordinateSequence* sequence = taxParcelsWays
+                                .value(reader.attributes().value("ref").toString().toLongLong())
+                                ->getCoordinates();
+                        try {
+                            holes.append(factory->createLinearRing(sequence));
+                        } catch(geos::util::IllegalArgumentException e) {
+                            qCritical() << e.what();
+                        }
+                    }
+                } else if (reader.name().toString() == "nd") {
+                    coordinates.append(*taxParcelsNodes.value(reader.attributes()
+                            .value("ref").toString().toLongLong())->getCoordinate());
+                }
+                break;
+            case QXmlStreamReader::EndElement:
+                if (reader.name().toString() == "way") {
+
+                    geos::geom::CoordinateSequence* sequence = factory
+                                ->getCoordinateSequenceFactory()->create(
+                                (std::vector<geos::geom::Coordinate>*) NULL, 2);
+                    bool skip = true;
+                    for (int i = 0; i < coordinates.size(); i++) {
+                        geos::geom::Coordinate coord = coordinates.at(i);
+                        if (skip && coord.y >= bottom && coord.y <= top
+                                && coord.x >= left && coord.x <= right) {
+                            skip = false;
+                        }
+                        sequence->add(coord);
+                    }
+
+                    if (!skip) {
+                        geos::geom::LinearRing* ring = factory->createLinearRing(sequence->clone());
+                        QSharedPointer<geos::geom::Polygon> polygon = QSharedPointer<geos::geom::Polygon>
+                                (factory->createPolygon(ring, NULL));
+                        taxParcels.append(polygon);
+
+                        const geos::geom::Envelope* envelope = polygon.data()->getEnvelopeInternal();
+                        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                        taxParcelsTree.insert(min, max, polygon);
+
+                        delete min;
+                        delete max;
+                    }
+
+                    taxParcelsWays.insert(wayId, factory->createLineString(sequence));
+                    coordinates.clear();
+                } else if (reader.name().toString() == "relation") {
+                    geos::geom::LinearRing* outerRing = factory
+                            ->createLinearRing(baseSequence);
+                    std::vector<geos::geom::Geometry*> innerHoles = holes
+                            .toVector().toStdVector();
+
+                    bool skip = true;
+                    for (std::size_t i = 0; i < baseSequence->size(); i++) {
+                        const geos::geom::Coordinate coord = baseSequence->getAt(i);
+                        if (coord.y >= bottom && coord.y <= top
+                                && coord.x >= left && coord.x <= right) {
+                            skip = false;
+                            break;
+                        }
+                    }
+
+                    if (!skip) {
+                        QSharedPointer<geos::geom::Polygon> polygon = QSharedPointer<geos::geom::Polygon>
+                                (factory->createPolygon(*outerRing, innerHoles));
+                        taxParcels.append(polygon);
+
+                        const geos::geom::Envelope* envelope = polygon.data()->getEnvelopeInternal();
+                        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+                        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+                        taxParcelsTree.insert(min, max, polygon);
+
+                        delete min;
+                        delete max;
+                    }
+
+                    delete outerRing;
+                    baseSequence = NULL;
+                    holes.clear();
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    mergeAddressBuildingTaxParcels();
+}
+
+void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
+    if (logOptions & MergedAddressesAndBuilding) {
+        output = output % newline;
+        output = output % QStringLiteral("Addresses merged into buildings from tax parcel data") % newline;
+    }
+
+    for (int i = 0; i < taxParcels.size(); ++i) {
+        QSharedPointer<geos::geom::Polygon> taxParcel = taxParcels.at(i);
+
+        const geos::geom::Envelope* envelope = taxParcel.data()->getEnvelopeInternal();
+
+        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+        QList<Address> nearAddresses = addressesTree.search(min, max, NULL, NULL);
+        QList<Building> nearBuildings = buildingsTree.search(min, max, NULL, NULL);
+
+        int numInnerAddresses = 0;
+        Address innerAddress;
+        int numInnerBuildings = 0;
+        Building innerBuilding;
+
+        for (int j = 0; j < nearAddresses.size(); ++j) {
+            Address address = nearAddresses.at(j);
+
+            if (taxParcel.data()->contains(address.coordinate().data())) {
+                ++numInnerAddresses;
+                innerAddress = address;
+                if (numInnerAddresses > 1) {
+                    break;
+                }
+            }
+        }
+
+        if (numInnerAddresses > 1) {
+            continue;
+        }
+
+        for (int j = 0; j < nearBuildings.size(); ++j) {
+            Building building = nearBuildings.at(j);
+
+            if (taxParcel.data()->contains(building.building().data())) {
+                if (numInnerBuildings == 0) {
+                    innerBuilding = building;
+                    numInnerBuildings++;
+                } else {
+                    numInnerBuildings++;
+                    double area1 = innerBuilding.building().data()->getArea();
+                    double area2 = building.building().data()->getArea();
+                    if (area2 > area1) {
+                        innerBuilding = building;
+                    }
+                }
+            }
+        }
+
+        if (numInnerAddresses == 1 && numInnerBuildings > 0) {
+            addressBuildings.insert(innerAddress, innerBuilding);
+        }
+    }
+
+    QList<Address> mergedAddresses = addressBuildings.keys();
+    for (int i = 0; i < mergedAddresses.size(); i++) {
+        Address mergedAddress = mergedAddresses.at(i);
+        newAddresses.removeOne(mergedAddress);
+        if (logOptions & MergedAddressesAndBuilding) {
+            output = output % QString("%1 %2").arg(mergedAddress.houseNumber(),
+                    mergedAddress.street().name()) % newline;
+        }
+    }
+
+    QList<Building> mergedBuildings = addressBuildings.values();
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        buildings.removeOne(mergedBuildings.at(i));
+        existingBuildings.removeOne(mergedBuildings.at(i));
     }
 
     mergeAddressBuildingTree();
@@ -1044,8 +1274,8 @@ void FultonCountyConverter::mergeAddressBuildingTree() {
     QList<Address> mergedAddresses = addressBuildings.keys();
     for (int i = 0; i < mergedAddresses.size(); i++) {
         Address mergedAddress = mergedAddresses.at(i);
-        newAddresses.removeOne(mergedAddress);
-        if (logOptions & MergedAddressesAndBuilding) {
+        if (newAddresses.removeOne(mergedAddress)
+                && (logOptions & MergedAddressesAndBuilding)) {
             output = output % QString("%1 %2").arg(mergedAddress.houseNumber(),
                     mergedAddress.street().name()) % newline;
         }

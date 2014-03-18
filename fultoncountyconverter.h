@@ -39,6 +39,7 @@ public:
     void setBoundingBox(double top, double left, double bottom, double right);
     void setAddresses(QString addressesFile);
     void setBuildings(QString buildingsFile);
+    void setTaxParcels(QString taxParcelsFile);
     void setZipCodes(QString zipCodesFile);
     void setLogOptions(Logging logOptions);
 
@@ -57,12 +58,14 @@ private:
     QHash<QString, Street> streets;
     QList<Building> existingBuildings;
     QList<Building> buildings;
+    QList< QSharedPointer<geos::geom::Polygon> > taxParcels;
     QList<Address> existingAddresses;
     QList<Address> newAddresses;
     QList<Address> excludedAddresses;
     QHash<Address, Building> addressBuildings;
 
     RTree<Building, double, 2> buildingsTree;
+    RTree< QSharedPointer<geos::geom::Polygon>, double, 2> taxParcelsTree;
     RTree<Address, double, 2> addressesTree;
 
     QString newline;
@@ -83,6 +86,7 @@ private:
 
     QFile addressesFile;
     QFile buildingsFile;
+    QFile taxParcelsFile;
     QFile zipCodesFile;
     Logging logOptions;
 
@@ -98,6 +102,8 @@ private:
     void validateAddresses();
     void validateBetweenAddresses();
     void checkZipCodes();
+    void readTaxParcels();
+    void mergeAddressBuildingTaxParcels();
     void mergeAddressBuildingTree();
     void writeXMLFile(QFile& file,
             const QList<Address> address,

@@ -30,6 +30,7 @@ public slots:
     void setAddressFile();
     void setZipCodeFile();
     void setBuildingFile();
+    void setTaxParcelsFile();
     void setOutputFile();
     void convert();
     void onConversionFinished();

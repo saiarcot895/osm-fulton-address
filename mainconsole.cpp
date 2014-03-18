@@ -19,6 +19,8 @@ MainConsole::MainConsole(QStringList options, QObject *parent) :
                 output = params.at(1);
             } else if (variable == "zip-code") {
                 converter->setZipCodes(params.at(1));
+            } else if (variable == "tax-parcel") {
+                converter->setTaxParcels(params.at(1));
             } else if (variable == "bbox") {
                 QStringList coords = params.at(1).split(",");
                 double top = coords.at(0).toDouble();
