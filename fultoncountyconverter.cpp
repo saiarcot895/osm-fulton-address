@@ -181,7 +181,7 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                     ->getCoordinateSequenceFactory()->create(
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < street.nodeIndices().size(); j++) {
-                nodePoints->add(*(nodes.value(street.nodeIndices().at(j)).point.data()->getCoordinate()));
+                nodePoints->add(*(nodes.value(street.nodeIndices().at(j)).point->getCoordinate()));
             }
             street.setPath(QSharedPointer<geos::geom::LineString>(factory->createLineString(nodePoints)));
         }
@@ -193,7 +193,7 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                     (std::vector<geos::geom::Coordinate>*) NULL, 2);
             for (int j = 0; j < building.nodeIndices().size(); j++) {
                 geos::geom::Coordinate coord = *(nodes.value(building.nodeIndices().at(j))
-                        .point.data()->getCoordinate());
+                        .point->getCoordinate());
                 nodePoints->add(coord);
             }
             try {
@@ -202,7 +202,7 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                         ->createPolygon(ring, NULL)));
                 existingBuildings.replace(i, building);
 
-                const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
                 double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                 double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -495,7 +495,7 @@ void FultonCountyConverter::readBuildingFile() {
                             (factory->createPolygon(ring, NULL)));
                         buildings.append(building);
 
-                        const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                        const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
                         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -535,7 +535,7 @@ void FultonCountyConverter::readBuildingFile() {
                             (factory->createPolygon(*outerRing, innerHoles)));
                         buildings.append(building);
 
-                        const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                        const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
                         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -581,7 +581,7 @@ void FultonCountyConverter::validateBuildings() {
 
         geos::geom::prep::PreparedPolygon polygon(building1.building().data());
 
-        const geos::geom::Envelope* envelope = building1.building().data()->getEnvelopeInternal();
+        const geos::geom::Envelope* envelope = building1.building()->getEnvelopeInternal();
         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -597,13 +597,13 @@ void FultonCountyConverter::validateBuildings() {
                 if (building1.year() >= building2.year()) {
                     if (logOptions & OverlappingBuildings) {
                         const geos::geom::Coordinate* centroid = building2.building()
-                                .data()->getCentroid()->getCoordinate();
+                                ->getCentroid()->getCoordinate();
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
                     buildings.removeOne(building2);
 
-                    const geos::geom::Envelope* envelope2 = building2.building().data()->getEnvelopeInternal();
+                    const geos::geom::Envelope* envelope2 = building2.building()->getEnvelopeInternal();
                     double* min2 = new double[2] {envelope2->getMinX(), envelope2->getMinY()};
                     double* max2 = new double[2] {envelope2->getMaxX(), envelope2->getMaxY()};
 
@@ -614,7 +614,7 @@ void FultonCountyConverter::validateBuildings() {
                 } else {
                     if (logOptions & OverlappingBuildings) {
                         const geos::geom::Coordinate* centroid = building1.building()
-                                .data()->getCentroid()->getCoordinate();
+                                ->getCentroid()->getCoordinate();
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
@@ -644,7 +644,7 @@ void FultonCountyConverter::removeExistingIntersectingBuildings() {
             if (polygon.intersects(building.building().data())) {
                 buildings.removeAt(j);
 
-                const geos::geom::Envelope* envelope = building.building().data()->getEnvelopeInternal();
+                const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
                 double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                 double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -754,9 +754,9 @@ void FultonCountyConverter::readAddressFile() {
                         QList<Street> matches = streets.values(streetName.toUpper());
                         if (!matches.isEmpty()) {
                             Street closestStreet = matches.at(0);
-                            double minDistance = address.coordinate().data()->distance(closestStreet.path().data());
+                            double minDistance = address.coordinate()->distance(closestStreet.path().data());
                             for (int i = 1; i < matches.size(); i++) {
-                                double distance = address.coordinate().data()->distance(matches.at(i).path().data());
+                                double distance = address.coordinate()->distance(matches.at(i).path().data());
                                 if (distance < minDistance) {
                                     closestStreet = matches.at(i);
                                     minDistance = distance;
@@ -868,7 +868,7 @@ void FultonCountyConverter::validateAddresses() {
     for (int i = 0; i < newAddresses.size(); i++) {
         Address address = newAddresses.at(i);
 
-        double distance = address.coordinate().data()->distance(address.street().path().data()) * DEGREES_TO_METERS;
+        double distance = address.coordinate()->distance(address.street().path().data()) * DEGREES_TO_METERS;
 
         if (distance > 100) {
             if (logOptions & AddressesFarFromStreet) {
@@ -934,7 +934,7 @@ void FultonCountyConverter::validateBetweenAddresses() {
                 continue;
             }
 
-            double distance = address1.coordinate().data()->distance(address2.coordinate().data()) * DEGREES_TO_METERS;
+            double distance = address1.coordinate()->distance(address2.coordinate().data()) * DEGREES_TO_METERS;
 
             if (distance < 3) {
                 if (logOptions & CloseAddresses) {
@@ -1064,7 +1064,7 @@ void FultonCountyConverter::readTaxParcels() {
                                 (factory->createPolygon(ring, NULL));
                         taxParcels.append(polygon);
 
-                        const geos::geom::Envelope* envelope = polygon.data()->getEnvelopeInternal();
+                        const geos::geom::Envelope* envelope = polygon->getEnvelopeInternal();
                         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -1097,7 +1097,7 @@ void FultonCountyConverter::readTaxParcels() {
                                 (factory->createPolygon(*outerRing, innerHoles));
                         taxParcels.append(polygon);
 
-                        const geos::geom::Envelope* envelope = polygon.data()->getEnvelopeInternal();
+                        const geos::geom::Envelope* envelope = polygon->getEnvelopeInternal();
                         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
@@ -1129,7 +1129,7 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
     for (int i = 0; i < taxParcels.size(); ++i) {
         QSharedPointer<geos::geom::Polygon> taxParcel = taxParcels.at(i);
 
-        const geos::geom::Envelope* envelope = taxParcel.data()->getEnvelopeInternal();
+        const geos::geom::Envelope* envelope = taxParcel->getEnvelopeInternal();
 
         double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
         double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
@@ -1145,7 +1145,7 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
         for (int j = 0; j < nearAddresses.size(); ++j) {
             Address address = nearAddresses.at(j);
 
-            if (taxParcel.data()->contains(address.coordinate().data())) {
+            if (taxParcel->contains(address.coordinate().data())) {
                 ++numInnerAddresses;
                 innerAddress = address;
                 if (numInnerAddresses > 1) {
@@ -1161,14 +1161,14 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
         for (int j = 0; j < nearBuildings.size(); ++j) {
             Building building = nearBuildings.at(j);
 
-            if (taxParcel.data()->contains(building.building().data())) {
+            if (taxParcel->contains(building.building().data())) {
                 if (numInnerBuildings == 0) {
                     innerBuilding = building;
                     numInnerBuildings++;
                 } else {
                     numInnerBuildings++;
-                    double area1 = innerBuilding.building().data()->getArea();
-                    double area2 = building.building().data()->getArea();
+                    double area1 = innerBuilding.building()->getArea();
+                    double area2 = building.building()->getArea();
                     if (area2 > area1) {
                         innerBuilding = building;
                     }
@@ -1244,7 +1244,7 @@ void FultonCountyConverter::mergeAddressBuildingTree() {
             if (addressBuildings.contains(address)) {
                 continue;
             }
-            if (building.building().data()->contains(address.coordinate().data())) {
+            if (building.building()->contains(address.coordinate().data())) {
                 if (!hasInnerAddress) {
                     hasInnerAddress = true;
                     innerAddress = address;
@@ -1254,7 +1254,7 @@ void FultonCountyConverter::mergeAddressBuildingTree() {
                     break;
                 }
             } else if (!hasInnerAddress) {
-                double distance = building.building().data()->distance(
+                double distance = building.building()->distance(
                             address.coordinate().data()) * DEGREES_TO_METERS;
                 if (distance < maxDistance) {
                     maxDistance = distance;
@@ -1354,8 +1354,8 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         writer.writeStartElement("node");
         writer.writeAttribute("id", QString("-%1").arg(id));
         id++;
-        writer.writeAttribute("lat", QString::number(address.coordinate().data()->getY(), 'g', 12));
-        writer.writeAttribute("lon", QString::number(address.coordinate().data()->getX(), 'g', 12));
+        writer.writeAttribute("lat", QString::number(address.coordinate()->getY(), 'g', 12));
+        writer.writeAttribute("lon", QString::number(address.coordinate()->getX(), 'g', 12));
 
         writer.writeStartElement("tag");
         writer.writeAttribute("k", "addr:housenumber");
@@ -1388,7 +1388,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         Building building = buildings.at(i);
 
         const geos::geom::CoordinateSequence* coordinates = building.building()
-                .data()->getExteriorRing()->getCoordinatesRO();
+                ->getExteriorRing()->getCoordinatesRO();
         for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
@@ -1413,7 +1413,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         writer.writeAttribute("ref", QString("-%1").arg(id - coordinates->size()));
         writer.writeEndElement();
 
-        std::size_t numHoles = building.building().data()->getNumInteriorRing();
+        std::size_t numHoles = building.building()->getNumInteriorRing();
         if (numHoles > 0) {
             writer.writeEndElement();
 
@@ -1421,7 +1421,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
 
             for (std::size_t j = 0; j < numHoles; j++) {
                 const geos::geom::CoordinateSequence* innerCoordinates = building
-                    .building().data()->getInteriorRingN(j)->getCoordinatesRO();
+                    .building()->getInteriorRingN(j)->getCoordinatesRO();
 
                 for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
                     geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
@@ -1506,7 +1506,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         }
 
         const geos::geom::CoordinateSequence* coordinates = building.building()
-                .data()->getExteriorRing()->getCoordinatesRO();
+                ->getExteriorRing()->getCoordinatesRO();
         for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
@@ -1531,7 +1531,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         writer.writeAttribute("ref", QString("-%1").arg(id - coordinates->size()));
         writer.writeEndElement();
 
-        std::size_t numHoles = building.building().data()->getNumInteriorRing();
+        std::size_t numHoles = building.building()->getNumInteriorRing();
         if (numHoles > 0) {
             writer.writeEndElement();
 
@@ -1539,7 +1539,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
 
             for (std::size_t j = 0; j < numHoles; j++) {
                 const geos::geom::CoordinateSequence* innerCoordinates = building
-                    .building().data()->getInteriorRingN(j)->getCoordinatesRO();
+                    .building()->getInteriorRingN(j)->getCoordinatesRO();
 
                 for (std::size_t k = 0; k < innerCoordinates->size() - 1; k++) {
                     geos::geom::Coordinate coordinate = innerCoordinates->getAt(k);
@@ -1649,7 +1649,7 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         }
 
         const geos::geom::CoordinateSequence* coordinates = building.building()
-                .data()->getExteriorRing()->getCoordinatesRO();
+                ->getExteriorRing()->getCoordinatesRO();
         for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
