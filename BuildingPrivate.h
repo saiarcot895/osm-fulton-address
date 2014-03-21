@@ -4,6 +4,7 @@
 #include <QSharedData>
 #include <QSharedPointer>
 #include <QMap>
+#include <QDateTime>
 #include <geos/geom/Polygon.h>
 
 class BuildingPrivate : public QSharedData {
@@ -11,7 +12,9 @@ public:
     BuildingPrivate() :
         id(0),
         version(-1),
-        year(0)
+        year(0),
+        uid(0),
+        changesetID(0)
     {
     }
 
@@ -23,7 +26,11 @@ public:
         featureID(other.featureID),
         building(other.building),
         nodeIndices(other.nodeIndices),
-        tags(other.tags)
+        tags(other.tags),
+        user(other.user),
+        uid(other.uid),
+        changesetID(other.changesetID),
+        timestamp(other.timestamp)
     {
     }
 
@@ -34,6 +41,10 @@ public:
     QSharedPointer<geos::geom::Polygon> building;
     QList<uint> nodeIndices;
     QMap<QString, QString> tags;
+    QString user;
+    uint uid;
+    uint changesetID;
+    QDateTime timestamp;
 
     ~BuildingPrivate() {}
 };

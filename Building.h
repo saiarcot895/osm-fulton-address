@@ -10,6 +10,7 @@
 
 #include <QSharedPointer>
 #include <QMap>
+#include <QDateTime>
 #include <geos/geom/Polygon.h>
 
 class BuildingPrivate;
@@ -26,6 +27,10 @@ public:
     QSharedPointer<geos::geom::Polygon> building() const;
     QList<uint> nodeIndices() const;
     QMap<QString, QString> tags() const;
+    QString user() const;
+    uint uid() const;
+    uint changesetID() const;
+    QDateTime timestamp() const;
 
     void setId(uint id);
     void setVersion(int version);
@@ -34,6 +39,10 @@ public:
     void setBuilding(QSharedPointer<geos::geom::Polygon> building);
     void setNodeIndices(QList<uint> nodeIndices);
     void setTags(QMap<QString, QString> tags);
+    void setUser(QString user);
+    void setUid(uint uid);
+    void setChangesetID(uint changesetID);
+    void setTimestamp(QDateTime timestamp);
 
     Building& operator=(const Building& other);
     virtual ~Building();

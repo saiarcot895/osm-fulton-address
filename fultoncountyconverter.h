@@ -8,6 +8,7 @@
 #include "node.h"
 #include "rtree.h"
 #include <QFile>
+#include <QHash>
 #include <QNetworkAccessManager>
 #include <QXmlStreamWriter>
 #include <geos/geom/GeometryFactory.h>

@@ -21,7 +21,7 @@ FultonCountyConverter::FultonCountyConverter(QObject* parent) :
     QObject(parent),
     nam(new QNetworkAccessManager(parent)),
     factory(new geos::geom::GeometryFactory(new geos::geom::PrecisionModel(), 4326)),
-    newline(QStringLiteral("\n"))
+    newline(QLatin1Literal("\n"))
 {
     connect(nam, SIGNAL(finished(QNetworkReply*)), this, SLOT(readOSM(QNetworkReply*)));
 }
@@ -98,6 +98,10 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
         int version = -1;
         QList<uint> nodeIndices;
         QMap<QString, QString> tags;
+        QString user;
+        uint uid;
+        uint changesetID;
+        QDateTime timestamp;
         FeatureType current = None;
         while (!reader.atEnd()) {
             // Tags are assumed to be in alphabetical order
@@ -118,8 +122,12 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                         // now, assume it is a road, since we need the nodes and
                         // those come before the way tags
                         current = Way;
-                        id = reader.attributes().value("id").toString().toUInt();
-                        version = reader.attributes().value("version").toString().toInt();
+                        id = reader.attributes().value("id").toUInt();
+                        version = reader.attributes().value("version").toInt();
+                        user = reader.attributes().value("user").toString();
+                        uid = reader.attributes().value("uid").toUInt();
+                        changesetID = reader.attributes().value("changeset").toUInt();
+                        timestamp = QDateTime::fromString(reader.attributes().value("timestamp").toString(), Qt::ISODate);
                     } else if (reader.name().toString() == "tag") {
                         if (reader.attributes().value("k") == "addr:housenumber") {
                             address = Address();
@@ -162,6 +170,10 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                             building.setVersion(version);
                             building.setNodeIndices(nodeIndices);
                             building.setTags(tags);
+                            building.setUser(user);
+                            building.setUid(uid);
+                            building.setChangesetID(changesetID);
+                            building.setTimestamp(timestamp);
                             existingBuildings.append(building);
                             current = None;
                         }
@@ -1653,20 +1665,28 @@ void FultonCountyConverter::writeXMLFile(QFile& file, const QList<Address> addre
         for (std::size_t j = 0; j < coordinates->size() - 1; j++) {
             geos::geom::Coordinate coordinate = coordinates->getAt(j);
             writer.writeStartElement("node");
-            writer.writeAttribute("id", QString("%1").arg(building.nodeIndices().at(j)));
-            writer.writeAttribute("version", QString("%1").arg(nodes.value(building.nodeIndices().at(j)).version));
+            writer.writeAttribute("id", QString::number(building.nodeIndices().at(j)));
+            writer.writeAttribute("version", QString::number(nodes.value(building.nodeIndices().at(j)).version));
             writer.writeAttribute("lat", QString::number(coordinate.y, 'g', 12));
             writer.writeAttribute("lon", QString::number(coordinate.x, 'g', 12));
+            writer.writeAttribute("user", building.user());
+            writer.writeAttribute("uid", QString::number(building.uid()));
+            writer.writeAttribute("changeset", QString::number(building.changesetID()));
+            writer.writeAttribute("timestamp", building.timestamp().toString(Qt::ISODate));
             writer.writeEndElement();
         }
 
         writer.writeStartElement("way");
-        writer.writeAttribute("id", QString("%1").arg(building.id()));
-        writer.writeAttribute("version", QString("%1").arg(building.version() + 1));
+        writer.writeAttribute("id", QString::number(building.id()));
+        writer.writeAttribute("version", QString::number(building.version()));
+        writer.writeAttribute("user", building.user());
+        writer.writeAttribute("uid", QString::number(building.uid()));
+        writer.writeAttribute("changeset", QString::number(building.changesetID()));
+        writer.writeAttribute("timestamp", building.timestamp().toString(Qt::ISODate));
 
         for (int j = 0; j < building.nodeIndices().size(); j++) {
             writer.writeStartElement("nd");
-            writer.writeAttribute("ref", QString("%1").arg(building.nodeIndices().at(j)));
+            writer.writeAttribute("ref", QString::number(building.nodeIndices().at(j)));
             writer.writeEndElement();
         }
 

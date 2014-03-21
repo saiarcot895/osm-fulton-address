@@ -47,6 +47,22 @@ QMap<QString, QString> Building::tags() const {
     return d->tags;
 }
 
+QString Building::user() const {
+    return d->user;
+}
+
+uint Building::uid() const {
+    return d->uid;
+}
+
+uint Building::changesetID() const {
+    return d->changesetID;
+}
+
+QDateTime Building::timestamp() const {
+    return d->timestamp;
+}
+
 void Building::setId(uint id) {
     d->id = id;
 }
@@ -73,6 +89,22 @@ void Building::setNodeIndices(QList<uint> nodeIndices) {
 
 void Building::setTags(QMap<QString, QString> tags) {
     d->tags = tags;
+}
+
+void Building::setUser(QString user) {
+    d->user = user;
+}
+
+void Building::setUid(uint uid) {
+    d->uid = uid;
+}
+
+void Building::setChangesetID(uint changesetID) {
+    d->changesetID = changesetID;
+}
+
+void Building::setTimestamp(QDateTime timestamp) {
+    d->timestamp = timestamp;
 }
 
 Building& Building::operator=(const Building& other) {
