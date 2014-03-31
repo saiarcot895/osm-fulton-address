@@ -1129,7 +1129,7 @@ void FultonCountyConverter::readTaxParcels() {
         }
     }
 
-    mergeAddressBuildingTaxWithin();
+    mergeAddressBuildingWithin();
 }
 
 void FultonCountyConverter::mergeAddressBuildingWithin() {
@@ -1355,9 +1355,9 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
             addressBuildings.insert(innerAddress, building);
         } else if (hasBestAddress) {
             if (addressBuildings.contains(innerAddress)) {
-                Address otherAddress = addressBuildings.value(innerAddress);
-                double distance = building.building()->distance(
-                            otherAddress.coordinate().data()) * DEGREES_TO_METERS;
+                Building otherBuilding = addressBuildings.value(innerAddress);
+                double distance = otherBuilding.building()->distance(
+                            innerAddress.coordinate().data()) * DEGREES_TO_METERS;
                 if (distance < maxDistance) {
                     addressBuildings.remove(innerAddress);
                     addressBuildings.insert(bestAddress, building);
