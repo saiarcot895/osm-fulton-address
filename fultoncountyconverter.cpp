@@ -997,13 +997,13 @@ void FultonCountyConverter::checkZipCodes() {
 
 void FultonCountyConverter::readTaxParcels() {
     if (taxParcelsFile.fileName().isEmpty()) {
-        mergeAddressBuildingTree();
+        mergeAddressBuildingNearby();
         return;
     }
 
     if (!taxParcelsFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCritical() << "Error: Couldn't open " << taxParcelsFile.fileName();
-        mergeAddressBuildingTree();
+        mergeAddressBuildingNearby();
         return;
     }
 
@@ -1129,6 +1129,81 @@ void FultonCountyConverter::readTaxParcels() {
         }
     }
 
+    mergeAddressBuildingTaxWithin();
+}
+
+void FultonCountyConverter::mergeAddressBuildingWithin() {
+    if (logOptions & MergedAddressesAndBuilding) {
+        output = output % newline;
+        output = output % QStringLiteral("Contained addresses merged into buildings") % newline;
+    }
+
+    for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {
+        Building building = i < buildings.size()
+                ? buildings.at(i)
+                : existingBuildings.at(i - buildings.size());
+
+        bool unaddressedBuilding = true;
+        QList<QString> keys = building.tags().keys();
+        for (int j = 0; j < keys.size(); ++j) {
+            if (keys.at(j).startsWith("addr:")) {
+                unaddressedBuilding = false;
+                break;
+            }
+        }
+        if (!unaddressedBuilding) {
+            continue;
+        }
+
+        const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
+
+        double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
+        double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
+
+        QList<Address> innerAddresses = addressesTree.search(min, max, NULL, NULL);
+
+        delete min;
+        delete max;
+
+        bool hasInnerAddress = false;
+        Address innerAddress;
+        for (int j = 0; j < innerAddresses.size(); ++j) {
+            Address address = innerAddresses.at(j);
+            if (addressBuildings.contains(address)) {
+                continue;
+            }
+            if (building.building()->contains(address.coordinate().data())) {
+                if (!hasInnerAddress) {
+                    hasInnerAddress = true;
+                    innerAddress = address;
+                } else {
+                    hasInnerAddress = false;
+                    break;
+                }
+            }
+        }
+
+        if (hasInnerAddress) {
+            addressBuildings.insert(innerAddress, building);
+        }
+    }
+
+    QList<Address> mergedAddresses = addressBuildings.keys();
+    for (int i = 0; i < mergedAddresses.size(); i++) {
+        Address mergedAddress = mergedAddresses.at(i);
+        if (newAddresses.removeOne(mergedAddress)
+                && (logOptions & MergedAddressesAndBuilding)) {
+            output = output % QString("%1 %2").arg(mergedAddress.houseNumber(),
+                    mergedAddress.street().name()) % newline;
+        }
+    }
+
+    QList<Building> mergedBuildings = addressBuildings.values();
+    for (int i = 0; i < mergedBuildings.size(); i++) {
+        buildings.removeOne(mergedBuildings.at(i));
+        existingBuildings.removeOne(mergedBuildings.at(i));
+    }
+
     mergeAddressBuildingTaxParcels();
 }
 
@@ -1196,8 +1271,8 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
     QList<Address> mergedAddresses = addressBuildings.keys();
     for (int i = 0; i < mergedAddresses.size(); i++) {
         Address mergedAddress = mergedAddresses.at(i);
-        newAddresses.removeOne(mergedAddress);
-        if (logOptions & MergedAddressesAndBuilding) {
+        if (newAddresses.removeOne(mergedAddress)
+                && (logOptions & MergedAddressesAndBuilding)) {
             output = output % QString("%1 %2").arg(mergedAddress.houseNumber(),
                     mergedAddress.street().name()) % newline;
         }
@@ -1209,13 +1284,13 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
         existingBuildings.removeOne(mergedBuildings.at(i));
     }
 
-    mergeAddressBuildingTree();
+    mergeAddressBuildingNearby();
 }
 
-void FultonCountyConverter::mergeAddressBuildingTree() {
+void FultonCountyConverter::mergeAddressBuildingNearby() {
     if (logOptions & MergedAddressesAndBuilding) {
         output = output % newline;
-        output = output % QStringLiteral("Addresses merged into buildings") % newline;
+        output = output % QStringLiteral("Nearby addresses merged into buildings") % newline;
     }
 
     for (int i = 0; i < (buildings.size() + existingBuildings.size()); i++) {

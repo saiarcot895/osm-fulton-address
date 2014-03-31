@@ -104,8 +104,9 @@ private:
     void validateBetweenAddresses();
     void checkZipCodes();
     void readTaxParcels();
+    void mergeAddressBuildingWithin();
     void mergeAddressBuildingTaxParcels();
-    void mergeAddressBuildingTree();
+    void mergeAddressBuildingNearby();
     void writeXMLFile(QFile& file,
             const QList<Address> address,
             const QList<Building> buildings,
