@@ -136,7 +136,7 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
                             // We don't care what street instance the address is
                             // linked to. If there is any address with the same number
                             // and street name, skip it.
-                            if (!address.street().name().isEmpty()) {
+                            if (address.street().name().isEmpty()) {
                                 address.street().setName(reader.attributes().value("v").toString());
                                 existingAddresses.append(address);
                             }
