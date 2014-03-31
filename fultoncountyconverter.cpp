@@ -74,10 +74,10 @@ void FultonCountyConverter::downloadOSM() {
             "way[\"building\"](%1,%2,%3,%4);"
             "relation[\"addr:housenumber\"](%1,%2,%3,%4););"
             "out meta;>;out meta;")
-            .arg(bottom)
-            .arg(left)
-            .arg(top)
-            .arg(right);
+            .arg(bottom - (15.0 / DEGREES_TO_METERS))
+            .arg(left - (15.0 / DEGREES_TO_METERS))
+            .arg(top + (15.0 / DEGREES_TO_METERS))
+            .arg(right + (15.0 / DEGREES_TO_METERS));
     QUrl url("http://overpass-api.de/api/interpreter/");
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 0, 0))
     QUrlQuery queries;
