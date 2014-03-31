@@ -1328,9 +1328,6 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
         double maxDistance = 25;
         for (int j = 0; j < innerAddresses.size(); ++j) {
             Address address = innerAddresses.at(j);
-            if (addressBuildings.contains(address)) {
-                continue;
-            }
             if (building.building()->contains(address.coordinate().data())) {
                 if (!hasInnerAddress) {
                     hasInnerAddress = true;
@@ -1352,9 +1349,22 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
         }
 
         if (hasInnerAddress) {
+            if (addressBuildings.contains(innerAddress)) {
+                addressBuildings.remove(innerAddress);
+            }
             addressBuildings.insert(innerAddress, building);
         } else if (hasBestAddress) {
-            addressBuildings.insert(bestAddress, building);
+            if (addressBuildings.contains(innerAddress)) {
+                Address otherAddress = addressBuildings.value(innerAddress);
+                double distance = building.building()->distance(
+                            otherAddress.coordinate().data()) * DEGREES_TO_METERS;
+                if (distance < maxDistance) {
+                    addressBuildings.remove(innerAddress);
+                    addressBuildings.insert(bestAddress, building);
+                }
+            } else {
+                addressBuildings.insert(bestAddress, building);
+            }
         }
     }
 
