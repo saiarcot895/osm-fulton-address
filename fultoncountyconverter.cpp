@@ -1350,15 +1350,30 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
 
         if (hasInnerAddress) {
             if (addressBuildings.contains(innerAddress)) {
-                addressBuildings.remove(innerAddress);
+                Building addedBuilding = addressBuildings.value(innerAddress);
+                if (!addedBuilding.building()->contains(innerAddress.coordinate().data())) {
+                    if (addedBuilding.id() != 0) {
+                        existingBuildings.append(addedBuilding);
+                    } else {
+                        buildings.append(addedBuilding);
+                    }
+                    addressBuildings.remove(innerAddress);
+                    addressBuildings.insert(innerAddress, building);
+                }
+            } else {
+                addressBuildings.insert(innerAddress, building);
             }
-            addressBuildings.insert(innerAddress, building);
         } else if (hasBestAddress) {
             if (addressBuildings.contains(innerAddress)) {
-                Building otherBuilding = addressBuildings.value(innerAddress);
-                double distance = otherBuilding.building()->distance(
+                Building addedBuilding = addressBuildings.value(innerAddress);
+                double distance = addedBuilding.building()->distance(
                             innerAddress.coordinate().data()) * DEGREES_TO_METERS;
                 if (distance < maxDistance) {
+                    if (addedBuilding.id() != 0) {
+                        existingBuildings.append(addedBuilding);
+                    } else {
+                        buildings.append(addedBuilding);
+                    }
                     addressBuildings.remove(innerAddress);
                     addressBuildings.insert(bestAddress, building);
                 }
