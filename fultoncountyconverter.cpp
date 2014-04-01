@@ -656,6 +656,13 @@ void FultonCountyConverter::removeExistingIntersectingBuildings() {
             if (polygon.intersects(building.building().data())) {
                 buildings.removeAt(j);
 
+                if (logOptions & OverlappingBuildings) {
+                    const geos::geom::Coordinate* centroid = building1.building()
+                            ->getCentroid()->getCoordinate();
+                    output = output % QString("(%1, %2) (existing building)")
+                            .arg(centroid->y).arg(centroid->x) % newline;
+                }
+
                 const geos::geom::Envelope* envelope = building.building()->getEnvelopeInternal();
                 double* min = new double[2] {envelope->getMinX(), envelope->getMinY()};
                 double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
