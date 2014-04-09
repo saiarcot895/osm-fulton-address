@@ -657,7 +657,7 @@ void FultonCountyConverter::removeExistingIntersectingBuildings() {
                 buildings.removeAt(j);
 
                 if (logOptions & OverlappingBuildings) {
-                    const geos::geom::Coordinate* centroid = building1.building()
+                    const geos::geom::Coordinate* centroid = building.building()
                             ->getCentroid()->getCoordinate();
                     output = output % QString("(%1, %2) (existing building)")
                             .arg(centroid->y).arg(centroid->x) % newline;
@@ -1191,6 +1191,7 @@ void FultonCountyConverter::mergeAddressBuildingWithin() {
         }
 
         if (hasInnerAddress) {
+            building.setMergeLevel(Building::Within);
             addressBuildings.insert(innerAddress, building);
         }
     }
@@ -1271,6 +1272,7 @@ void FultonCountyConverter::mergeAddressBuildingTaxParcels() {
         }
 
         if (numInnerAddresses == 1 && numInnerBuildings > 0) {
+            innerBuilding.setMergeLevel(Building::TaxParcel);
             addressBuildings.insert(innerAddress, innerBuilding);
         }
     }
@@ -1328,60 +1330,39 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
         delete min;
         delete max;
 
-        bool hasInnerAddress = false;
-        Address innerAddress;
         bool hasBestAddress = false;
         Address bestAddress;
         double maxDistance = 25;
         for (int j = 0; j < innerAddresses.size(); ++j) {
             Address address = innerAddresses.at(j);
             if (building.building()->contains(address.coordinate().data())) {
-                if (!hasInnerAddress) {
-                    hasInnerAddress = true;
-                    innerAddress = address;
-                } else {
-                    hasInnerAddress = false;
-                    hasBestAddress = false;
-                    break;
-                }
-            } else if (!hasInnerAddress) {
-                double distance = building.building()->distance(
-                            address.coordinate().data()) * DEGREES_TO_METERS;
-                if (distance < maxDistance) {
-                    maxDistance = distance;
-                    hasBestAddress = true;
-                    bestAddress = address;
-                }
+                hasBestAddress = false;
+                break;
+            }
+
+            double distance = building.building()->distance(
+                        address.coordinate().data()) * DEGREES_TO_METERS;
+            if (distance < maxDistance) {
+                maxDistance = distance;
+                hasBestAddress = true;
+                bestAddress = address;
             }
         }
 
-        if (hasInnerAddress) {
-            if (addressBuildings.contains(innerAddress)) {
-                Building addedBuilding = addressBuildings.value(innerAddress);
-                if (!addedBuilding.building()->contains(innerAddress.coordinate().data())) {
-                    if (addedBuilding.id() != 0) {
-                        existingBuildings.append(addedBuilding);
-                    } else {
-                        buildings.append(addedBuilding);
-                    }
-                    addressBuildings.remove(innerAddress);
-                    addressBuildings.insert(innerAddress, building);
-                }
-            } else {
-                addressBuildings.insert(innerAddress, building);
-            }
-        } else if (hasBestAddress) {
-            if (addressBuildings.contains(innerAddress)) {
-                Building addedBuilding = addressBuildings.value(innerAddress);
+        if (hasBestAddress) {
+            if (addressBuildings.contains(bestAddress)) {
+                Building addedBuilding = addressBuildings.value(bestAddress);
                 double distance = addedBuilding.building()->distance(
-                            innerAddress.coordinate().data()) * DEGREES_TO_METERS;
-                if (distance < maxDistance) {
+                            bestAddress.coordinate().data()) * DEGREES_TO_METERS;
+                if (addedBuilding.mergeLevel() == Building::Nearby && distance < maxDistance) {
                     if (addedBuilding.id() != 0) {
                         existingBuildings.append(addedBuilding);
                     } else {
                         buildings.append(addedBuilding);
                     }
-                    addressBuildings.remove(innerAddress);
+                    addedBuilding.setMergeLevel(Building::Unmerged);
+                    addressBuildings.remove(bestAddress);
+                    building.setMergeLevel(Building::Nearby);
                     addressBuildings.insert(bestAddress, building);
                 }
             } else {

@@ -1,11 +1,8 @@
 #ifndef BUILDINGPRIVATE_H
 #define BUILDINGPRIVATE_H
 
+#include "Building.h"
 #include <QSharedData>
-#include <QSharedPointer>
-#include <QMap>
-#include <QDateTime>
-#include <geos/geom/Polygon.h>
 
 class BuildingPrivate : public QSharedData {
 public:
@@ -14,7 +11,8 @@ public:
         version(-1),
         year(0),
         uid(0),
-        changesetID(0)
+        changesetID(0),
+        mergeLevel(Building::Unmerged)
     {
     }
 
@@ -30,7 +28,8 @@ public:
         user(other.user),
         uid(other.uid),
         changesetID(other.changesetID),
-        timestamp(other.timestamp)
+        timestamp(other.timestamp),
+        mergeLevel(other.mergeLevel)
     {
     }
 
@@ -45,6 +44,7 @@ public:
     uint uid;
     uint changesetID;
     QDateTime timestamp;
+    Building::AddressMergeLevel mergeLevel;
 
     ~BuildingPrivate() {}
 };

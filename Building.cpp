@@ -63,6 +63,10 @@ QDateTime Building::timestamp() const {
     return d->timestamp;
 }
 
+Building::AddressMergeLevel Building::mergeLevel() const {
+    return d->mergeLevel;
+}
+
 void Building::setId(uint id) {
     d->id = id;
 }
@@ -105,6 +109,10 @@ void Building::setChangesetID(uint changesetID) {
 
 void Building::setTimestamp(QDateTime timestamp) {
     d->timestamp = timestamp;
+}
+
+void Building::setMergeLevel(AddressMergeLevel mergeLevel) {
+    d->mergeLevel = mergeLevel;
 }
 
 Building& Building::operator=(const Building& other) {

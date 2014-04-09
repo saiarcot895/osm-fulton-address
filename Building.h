@@ -20,6 +20,13 @@ public:
     Building();
     Building(const Building& orig);
 
+    enum AddressMergeLevel {
+        Within = 0,
+        TaxParcel,
+        Nearby,
+        Unmerged = 99
+    };
+
     uint id() const;
     int version() const;
     int year() const;
@@ -31,6 +38,7 @@ public:
     uint uid() const;
     uint changesetID() const;
     QDateTime timestamp() const;
+    AddressMergeLevel mergeLevel() const;
 
     void setId(uint id);
     void setVersion(int version);
@@ -43,6 +51,7 @@ public:
     void setUid(uint uid);
     void setChangesetID(uint changesetID);
     void setTimestamp(QDateTime timestamp);
+    void setMergeLevel(AddressMergeLevel mergeLevel);
 
     Building& operator=(const Building& other);
     virtual ~Building();
