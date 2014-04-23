@@ -220,8 +220,8 @@ void FultonCountyConverter::readOSM(QNetworkReply* reply) {
 
                 buildingsTree.insert(min, max, building);
 
-                delete min;
-                delete max;
+                delete[] min;
+                delete[] max;
             } catch (...) {
                 qDebug() << "Building skipped";
                 existingBuildings.removeAt(i);
@@ -513,8 +513,8 @@ void FultonCountyConverter::readBuildingFile() {
 
                         buildingsTree.insert(min, max, building);
 
-                        delete min;
-                        delete max;
+                        delete[] min;
+                        delete[] max;
                     }
 
                     skip1 = true;
@@ -553,8 +553,8 @@ void FultonCountyConverter::readBuildingFile() {
 
                         buildingsTree.insert(min, max, building);
 
-                        delete min;
-                        delete max;
+                        delete[] min;
+                        delete[] max;
                     }
 
                     delete outerRing;
@@ -613,16 +613,16 @@ void FultonCountyConverter::validateBuildings() {
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
-                    buildings.removeOne(building2);
 
                     const geos::geom::Envelope* envelope2 = building2.building()->getEnvelopeInternal();
                     double* min2 = new double[2] {envelope2->getMinX(), envelope2->getMinY()};
                     double* max2 = new double[2] {envelope2->getMaxX(), envelope2->getMaxY()};
 
                     buildingsTree.remove(min, max, building2);
+                    buildings.removeOne(building2);
 
-                    delete min2;
-                    delete max2;
+                    delete[] min2;
+                    delete[] max2;
                 } else {
                     if (logOptions & OverlappingBuildings) {
                         const geos::geom::Coordinate* centroid = building1.building()
@@ -630,15 +630,15 @@ void FultonCountyConverter::validateBuildings() {
                         output = output % QString("(%1, %2)")
                                 .arg(centroid->y).arg(centroid->x) % newline;
                     }
-                    buildings.removeOne(building1);
                     buildingsTree.remove(min, max, building1);
+                    buildings.removeOne(building1);
                     break;
                 }
             }
         }
 
-        delete min;
-        delete max;
+        delete[] min;
+        delete[] max;
     }
 
     removeExistingIntersectingBuildings();
@@ -668,6 +668,9 @@ void FultonCountyConverter::removeExistingIntersectingBuildings() {
                 double* max = new double[2] {envelope->getMaxX(), envelope->getMaxY()};
 
                 buildingsTree.remove(min, max, building);
+
+                delete[] min;
+                delete[] max;
 
                 j--;
             }
@@ -820,8 +823,8 @@ void FultonCountyConverter::readAddressFile() {
 
                                 addressesTree.remove(min, max, existingAddress);
 
-                                delete min;
-                                delete max;
+                                delete[] min;
+                                delete[] max;
 
                                 if (existingAddress.addressType() == Address::Structural
                                         && address.addressType() == Address::Structural) {
@@ -844,8 +847,8 @@ void FultonCountyConverter::readAddressFile() {
 
                                 addressesTree.insert(min, max, existingAddress);
 
-                                delete min;
-                                delete max;
+                                delete[] min;
+                                delete[] max;
 
                                 newAddresses.replace(i, existingAddress);
                             } else {
@@ -857,8 +860,8 @@ void FultonCountyConverter::readAddressFile() {
 
                                 addressesTree.insert(min, max, address);
 
-                                delete min;
-                                delete max;
+                                delete[] min;
+                                delete[] max;
                             }
                         }
                     }
@@ -1089,8 +1092,8 @@ void FultonCountyConverter::readTaxParcels() {
 
                         taxParcelsTree.insert(min, max, polygon);
 
-                        delete min;
-                        delete max;
+                        delete[] min;
+                        delete[] max;
                     }
 
                     taxParcelsWays.insert(wayId, factory->createLineString(sequence));
@@ -1122,8 +1125,8 @@ void FultonCountyConverter::readTaxParcels() {
 
                         taxParcelsTree.insert(min, max, polygon);
 
-                        delete min;
-                        delete max;
+                        delete[] min;
+                        delete[] max;
                     }
 
                     delete outerRing;
@@ -1169,8 +1172,8 @@ void FultonCountyConverter::mergeAddressBuildingWithin() {
 
         QList<Address> innerAddresses = addressesTree.search(min, max, NULL, NULL);
 
-        delete min;
-        delete max;
+        delete[] min;
+        delete[] max;
 
         bool hasInnerAddress = false;
         Address innerAddress;
@@ -1327,8 +1330,8 @@ void FultonCountyConverter::mergeAddressBuildingNearby() {
 
         QList<Address> innerAddresses = addressesTree.search(min, max, NULL, NULL);
 
-        delete min;
-        delete max;
+        delete[] min;
+        delete[] max;
 
         bool hasBestAddress = false;
         Address bestAddress;
