@@ -12,14 +12,6 @@ TARGET = Converter
 TEMPLATE = app
 CONFIG += c++11
 
-CONFIG(debug, debug|release) {
-    CONFIG += address_sanitizer
-    QMAKE_CXXFLAGS += "-fsanitize=address -fno-omit-frame-pointer"
-    QMAKE_CFLAGS += "-fsanitize=address -fno-omit-frame-pointer"
-    QMAKE_LFLAGS += "-fsanitize=address"
-}
-
-
 SOURCES += main.cpp\
     Address.cpp \
     Building.cpp \
